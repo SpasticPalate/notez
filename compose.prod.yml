@@ -18,6 +18,20 @@ services:
       timeout: 5s
       retries: 5
 
+  # Database migrations (run once before backend starts)
+  migrations:
+    image: ghcr.io/yourusername/notez-backend:latest
+    container_name: notez-migrations
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-notez}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-notez}?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - notez-network
+    command: npx prisma migrate deploy
+    restart: "no"
+
   # Backend API
   backend:
     image: ghcr.io/yourusername/notez-backend:latest
@@ -34,12 +48,15 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Please set JWT_REFRESH_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Please set ENCRYPTION_KEY}
       CORS_ORIGIN: ${CORS_ORIGIN:-https://notez.curgghoth.com}
+      COOKIE_SECRET: ${COOKIE_SECRET:-${JWT_REFRESH_SECRET}}
     depends_on:
       postgres:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     networks:
       - notez-network
-    command: sh -c "npx prisma migrate deploy && node dist/index.js"
+    command: ["node", "dist/index.js"]
 
   # Frontend
   frontend:

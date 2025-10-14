@@ -18,13 +18,16 @@ await fastify.register(cors, {
   credentials: true,
 });
 
-await fastify.register(cookie);
+// Register cookie plugin with secret for signing
+await fastify.register(cookie, {
+  secret: process.env.COOKIE_SECRET || process.env.JWT_REFRESH_SECRET || 'change-me-in-production',
+});
 
 await fastify.register(jwt, {
   secret: process.env.JWT_ACCESS_SECRET || 'change-me-in-production',
   cookie: {
     cookieName: 'refreshToken',
-    signed: false,
+    signed: true,
   },
 });
 
@@ -65,9 +68,15 @@ const start = async () => {
 // Graceful shutdown
 const gracefulShutdown = async (signal: string) => {
   console.log(`\n${signal} received, closing server gracefully...`);
-  await fastify.close();
-  await prisma.$disconnect();
-  process.exit(0);
+  try {
+    await fastify.close();
+    await prisma.$disconnect();
+    console.log('Server closed gracefully.');
+    process.exit(0);
+  } catch (err) {
+    console.error('Error during graceful shutdown:', err);
+    process.exit(1);
+  }
 };
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
