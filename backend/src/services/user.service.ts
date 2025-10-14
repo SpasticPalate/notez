@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/db.js';
 import { hashPassword } from './auth.service.js';
 import type { CreateUserInput, UpdateUserInput } from '../utils/validation.schemas.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Get user by ID
@@ -150,8 +148,32 @@ export async function updateUser(id: string, data: UpdateUserInput) {
     throw new Error('User not found');
   }
 
-  // Update user
-  const user = await prisma.user.update({
+  // If user is being deactivated, update user and invalidate sessions atomically
+  if (data.isActive === false) {
+    const [user] = await prisma.$transaction([
+      prisma.user.update({
+        where: { id },
+        data,
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          role: true,
+          isActive: true,
+          mustChangePassword: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.session.deleteMany({
+        where: { userId: id },
+      }),
+    ]);
+    return user;
+  }
+
+  // Normal update without session invalidation
+  return prisma.user.update({
     where: { id },
     data,
     select: {
@@ -165,15 +187,6 @@ export async function updateUser(id: string, data: UpdateUserInput) {
       updatedAt: true,
     },
   });
-
-  // If user is being deactivated, invalidate all their sessions
-  if (data.isActive === false) {
-    await prisma.session.deleteMany({
-      where: { userId: id },
-    });
-  }
-
-  return user;
 }
 
 /**
@@ -190,29 +203,29 @@ export async function resetUserPassword(id: string, newPassword: string) {
   // Hash new password
   const passwordHash = await hashPassword(newPassword);
 
-  // Update password and force change on next login
-  const user = await prisma.user.update({
-    where: { id },
-    data: {
-      passwordHash,
-      mustChangePassword: true,
-    },
-    select: {
-      id: true,
-      username: true,
-      email: true,
-      role: true,
-      isActive: true,
-      mustChangePassword: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
-
-  // Invalidate all user sessions
-  await prisma.session.deleteMany({
-    where: { userId: id },
-  });
+  // Update password and invalidate all sessions atomically
+  const [user] = await prisma.$transaction([
+    prisma.user.update({
+      where: { id },
+      data: {
+        passwordHash,
+        mustChangePassword: true,
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        isActive: true,
+        mustChangePassword: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
+    prisma.session.deleteMany({
+      where: { userId: id },
+    }),
+  ]);
 
   return user;
 }

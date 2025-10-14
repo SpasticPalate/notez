@@ -28,6 +28,14 @@ export async function authenticateToken(
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
+    // Validate token length to prevent DoS attacks with extremely long tokens
+    if (token.length > 1000) {
+      return reply.status(401).send({
+        error: 'Unauthorized',
+        message: 'Token too long',
+      });
+    }
+
     // Verify token
     const payload = verifyAccessToken(token);
 
@@ -75,8 +83,12 @@ export async function optionalAuth(
     const authHeader = request.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      const payload = verifyAccessToken(token);
-      request.user = payload;
+
+      // Validate token length
+      if (token.length <= 1000) {
+        const payload = verifyAccessToken(token);
+        request.user = payload;
+      }
     }
   } catch (error) {
     // Ignore errors for optional auth

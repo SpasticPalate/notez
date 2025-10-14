@@ -26,10 +26,12 @@ const REFRESH_TOKEN_EXPIRY = '7d';
 export function generateTokenPair(payload: TokenPayload): TokenPair {
   const accessToken = jwt.sign(payload, ACCESS_TOKEN_SECRET, {
     expiresIn: ACCESS_TOKEN_EXPIRY,
+    algorithm: 'HS256',
   });
 
   const refreshToken = jwt.sign(payload, REFRESH_TOKEN_SECRET, {
     expiresIn: REFRESH_TOKEN_EXPIRY,
+    algorithm: 'HS256',
   });
 
   return { accessToken, refreshToken };
@@ -40,7 +42,9 @@ export function generateTokenPair(payload: TokenPayload): TokenPair {
  */
 export function verifyAccessToken(token: string): TokenPayload {
   try {
-    return jwt.verify(token, ACCESS_TOKEN_SECRET) as TokenPayload;
+    return jwt.verify(token, ACCESS_TOKEN_SECRET, {
+      algorithms: ['HS256'],
+    }) as TokenPayload;
   } catch (error) {
     throw new Error('Invalid or expired access token');
   }
@@ -51,7 +55,9 @@ export function verifyAccessToken(token: string): TokenPayload {
  */
 export function verifyRefreshToken(token: string): TokenPayload {
   try {
-    return jwt.verify(token, REFRESH_TOKEN_SECRET) as TokenPayload;
+    return jwt.verify(token, REFRESH_TOKEN_SECRET, {
+      algorithms: ['HS256'],
+    }) as TokenPayload;
   } catch (error) {
     throw new Error('Invalid or expired refresh token');
   }

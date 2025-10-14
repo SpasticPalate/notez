@@ -1,9 +1,8 @@
 import bcrypt from 'bcrypt';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/db.js';
 import { generateTokenPair, verifyRefreshToken, type TokenPayload } from '../utils/jwt.utils.js';
 import type { SetupInput, LoginInput, ChangePasswordInput } from '../utils/validation.schemas.js';
 
-const prisma = new PrismaClient();
 const SALT_ROUNDS = 10;
 
 /**
@@ -192,17 +191,22 @@ export async function refreshAccessToken(refreshToken: string) {
     role: session.user.role,
   });
 
-  // Update session with new refresh token
+  // Delete old session and create new one atomically (prevents token reuse)
   const newExpiresAt = new Date();
   newExpiresAt.setDate(newExpiresAt.getDate() + 7);
 
-  await prisma.session.update({
-    where: { id: session.id },
-    data: {
-      refreshToken: tokens.refreshToken,
-      expiresAt: newExpiresAt,
-    },
-  });
+  await prisma.$transaction([
+    prisma.session.delete({
+      where: { id: session.id },
+    }),
+    prisma.session.create({
+      data: {
+        userId: session.user.id,
+        refreshToken: tokens.refreshToken,
+        expiresAt: newExpiresAt,
+      },
+    }),
+  ]);
 
   return {
     user: {
@@ -217,11 +221,23 @@ export async function refreshAccessToken(refreshToken: string) {
 }
 
 /**
- * Logout (invalidate refresh token)
+ * Logout (invalidate all user sessions for security)
  */
 export async function logout(refreshToken: string) {
-  await prisma.session.deleteMany({
+  // Find the session to get the userId
+  const session = await prisma.session.findUnique({
     where: { refreshToken },
+    select: { userId: true },
+  });
+
+  if (!session) {
+    // Session doesn't exist, nothing to do
+    return;
+  }
+
+  // Invalidate ALL sessions for this user for better security
+  await prisma.session.deleteMany({
+    where: { userId: session.userId },
   });
 }
 

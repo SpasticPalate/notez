@@ -132,6 +132,8 @@ export async function authRoutes(fastify: FastifyInstance) {
       // Unsign the cookie if using signed cookies
       const token = request.unsignCookie(refreshToken);
       if (!token.valid) {
+        // Clear invalid cookie
+        reply.clearCookie('refreshToken', { path: '/' });
         return reply.status(401).send({
           error: 'Unauthorized',
           message: 'Invalid refresh token signature',
@@ -140,7 +142,7 @@ export async function authRoutes(fastify: FastifyInstance) {
 
       const result = await authService.refreshAccessToken(token.value!);
 
-      // Update refresh token cookie
+      // Update refresh token cookie with improved security settings
       reply.setCookie('refreshToken', result.tokens.refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -160,6 +162,8 @@ export async function authRoutes(fastify: FastifyInstance) {
 
       if (error instanceof Error) {
         if (error.message.includes('Invalid') || error.message.includes('expired')) {
+          // Clear invalid/expired cookie
+          reply.clearCookie('refreshToken', { path: '/' });
           return reply.status(401).send({
             error: 'Unauthorized',
             message: error.message,
