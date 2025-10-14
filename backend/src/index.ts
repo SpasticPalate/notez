@@ -3,9 +3,9 @@ import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
 import jwt from '@fastify/jwt';
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { authRoutes } from './routes/auth.routes.js';
+import { usersRoutes } from './routes/users.routes.js';
+import { prisma, disconnectPrisma } from './lib/db.js';
 const fastify = Fastify({
   logger: {
     level: process.env.LOG_LEVEL || 'info',
@@ -50,6 +50,10 @@ fastify.get('/', async () => {
   };
 });
 
+// Register API routes
+await fastify.register(authRoutes, { prefix: '/api' });
+await fastify.register(usersRoutes, { prefix: '/api' });
+
 // Start server
 const start = async () => {
   try {
@@ -60,7 +64,7 @@ const start = async () => {
     console.log(`🚀 Notez API server running on http://${host}:${port}`);
   } catch (err) {
     fastify.log.error(err);
-    await prisma.$disconnect();
+    await disconnectPrisma();
     process.exit(1);
   }
 };
@@ -70,7 +74,7 @@ const gracefulShutdown = async (signal: string) => {
   console.log(`\n${signal} received, closing server gracefully...`);
   try {
     await fastify.close();
-    await prisma.$disconnect();
+    await disconnectPrisma();
     console.log('Server closed gracefully.');
     process.exit(0);
   } catch (err) {
