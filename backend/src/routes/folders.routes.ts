@@ -9,6 +9,7 @@ import {
   type CreateFolderInput,
   type UpdateFolderInput,
 } from '../utils/validation.schemas.js';
+import { NotFoundError, ConflictError } from '../utils/errors.js';
 
 // Param schemas
 const folderIdParamSchema = z.object({
@@ -69,7 +70,7 @@ export async function foldersRoutes(fastify: FastifyInstance) {
       } catch (error) {
         fastify.log.error(error);
 
-        if (error instanceof Error && error.message.includes('not found')) {
+        if (error instanceof NotFoundError) {
           return reply.status(404).send({
             error: 'Not Found',
             message: error.message,
@@ -102,13 +103,11 @@ export async function foldersRoutes(fastify: FastifyInstance) {
       } catch (error) {
         fastify.log.error(error);
 
-        if (error instanceof Error) {
-          if (error.message.includes('already exists')) {
-            return reply.status(409).send({
-              error: 'Conflict',
-              message: error.message,
-            });
-          }
+        if (error instanceof ConflictError) {
+          return reply.status(409).send({
+            error: 'Conflict',
+            message: error.message,
+          });
         }
 
         return reply.status(500).send({
@@ -138,19 +137,18 @@ export async function foldersRoutes(fastify: FastifyInstance) {
       } catch (error) {
         fastify.log.error(error);
 
-        if (error instanceof Error) {
-          if (error.message.includes('not found')) {
-            return reply.status(404).send({
-              error: 'Not Found',
-              message: error.message,
-            });
-          }
-          if (error.message.includes('already exists')) {
-            return reply.status(409).send({
-              error: 'Conflict',
-              message: error.message,
-            });
-          }
+        if (error instanceof NotFoundError) {
+          return reply.status(404).send({
+            error: 'Not Found',
+            message: error.message,
+          });
+        }
+
+        if (error instanceof ConflictError) {
+          return reply.status(409).send({
+            error: 'Conflict',
+            message: error.message,
+          });
         }
 
         return reply.status(500).send({
@@ -177,7 +175,7 @@ export async function foldersRoutes(fastify: FastifyInstance) {
       } catch (error) {
         fastify.log.error(error);
 
-        if (error instanceof Error && error.message.includes('not found')) {
+        if (error instanceof NotFoundError) {
           return reply.status(404).send({
             error: 'Not Found',
             message: error.message,

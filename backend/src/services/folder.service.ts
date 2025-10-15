@@ -1,5 +1,6 @@
 import { prisma } from '../lib/db.js';
 import type { CreateFolderInput, UpdateFolderInput } from '../utils/validation.schemas.js';
+import { NotFoundError, ConflictError } from '../utils/errors.js';
 
 /**
  * Get folder by ID
@@ -19,7 +20,7 @@ export async function getFolderById(folderId: string, userId: string) {
   });
 
   if (!folder) {
-    throw new Error('Folder not found');
+    throw new NotFoundError('Folder not found');
   }
 
   return {
@@ -67,7 +68,7 @@ export async function createFolder(userId: string, data: CreateFolderInput) {
     });
 
     if (existing) {
-      throw new Error('A folder with this name already exists');
+      throw new ConflictError('A folder with this name already exists');
     }
 
     // Create folder
@@ -105,7 +106,7 @@ export async function updateFolder(folderId: string, userId: string, data: Updat
     });
 
     if (!existingFolder) {
-      throw new Error('Folder not found');
+      throw new NotFoundError('Folder not found');
     }
 
     // If name is being changed, check for duplicates
@@ -119,7 +120,7 @@ export async function updateFolder(folderId: string, userId: string, data: Updat
       });
 
       if (duplicate) {
-        throw new Error('A folder with this name already exists');
+        throw new ConflictError('A folder with this name already exists');
       }
     }
 
@@ -164,7 +165,7 @@ export async function deleteFolder(folderId: string, userId: string) {
     });
 
     if (!folder) {
-      throw new Error('Folder not found');
+      throw new NotFoundError('Folder not found');
     }
 
     const noteCount = folder._count.notes;
@@ -188,23 +189,21 @@ export async function deleteFolder(folderId: string, userId: string) {
  * Get folder statistics for a user
  */
 export async function getFolderStats(userId: string) {
-  const [totalFolders, foldersWithCounts] = await Promise.all([
-    prisma.folder.count({ where: { userId } }),
-    prisma.folder.findMany({
-      where: { userId },
-      select: {
-        id: true,
-        name: true,
-        _count: {
-          select: { notes: true },
-        },
+  const foldersWithCounts = await prisma.folder.findMany({
+    where: { userId },
+    select: {
+      id: true,
+      name: true,
+      _count: {
+        select: { notes: true },
       },
-      orderBy: {
-        name: 'asc',
-      },
-    }),
-  ]);
+    },
+    orderBy: {
+      name: 'asc',
+    },
+  });
 
+  const totalFolders = foldersWithCounts.length;
   const emptyFolders = foldersWithCounts.filter((f) => f._count.notes === 0).length;
   const totalNotes = foldersWithCounts.reduce((sum, f) => sum + f._count.notes, 0);
 
