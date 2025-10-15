@@ -73,6 +73,15 @@ export const listNotesQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
+// Folder schemas
+export const createFolderSchema = z.object({
+  name: z.string().min(1, 'Folder name is required').max(255, 'Folder name must not exceed 255 characters'),
+});
+
+export const updateFolderSchema = z.object({
+  name: z.string().min(1, 'Folder name is required').max(255, 'Folder name must not exceed 255 characters'),
+});
+
 // Type exports
 export type SetupInput = z.infer<typeof setupSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -83,3 +92,5 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type CreateNoteInput = z.infer<typeof createNoteSchema>;
 export type UpdateNoteInput = z.infer<typeof updateNoteSchema>;
 export type ListNotesQuery = z.infer<typeof listNotesQuerySchema>;
+export type CreateFolderInput = z.infer<typeof createFolderSchema>;
+export type UpdateFolderInput = z.infer<typeof updateFolderSchema>;
