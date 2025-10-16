@@ -1,9 +1,14 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateToken } from '../middleware/auth.middleware.js';
+import { validateQuery, validateBody, validateParams } from '../middleware/validate.middleware.js';
 import * as tagService from '../services/tag.service.js';
 import { z } from 'zod';
 
 // Validation schemas
+const tagIdParamSchema = z.object({
+  id: z.string().uuid('Invalid tag ID format'),
+});
+
 const renameTagSchema = z.object({
   name: z.string().min(1).max(100),
 });
@@ -29,22 +34,19 @@ export async function tagRoutes(fastify: FastifyInstance) {
   });
 
   // Search/autocomplete tags
-  fastify.get(
+  fastify.get<{ Querystring: z.infer<typeof searchQuerySchema> }>(
     '/search',
-    async (
-      request: FastifyRequest<{ Querystring: z.infer<typeof searchQuerySchema> }>,
-      reply: FastifyReply
-    ) => {
+    {
+      preHandler: [validateQuery(searchQuerySchema)],
+    },
+    async (request, reply) => {
       try {
-        const { q, limit } = searchQuerySchema.parse(request.query);
+        const { q, limit } = request.query;
         const tags = q
           ? await tagService.searchTags(request.user!.userId, q, limit)
           : await tagService.listTags(request.user!.userId);
         reply.send({ tags });
       } catch (error: any) {
-        if (error instanceof z.ZodError) {
-          return reply.status(400).send({ message: 'Invalid query parameters', errors: error.errors });
-        }
         fastify.log.error(error);
         reply.status(500).send({ message: 'Failed to search tags' });
       }
@@ -63,34 +65,37 @@ export async function tagRoutes(fastify: FastifyInstance) {
   });
 
   // Get single tag
-  fastify.get('/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-    try {
-      const tag = await tagService.getTagById(request.params.id, request.user!.userId);
-      reply.send({ tag });
-    } catch (error: any) {
-      if (error.message === 'Tag not found') {
-        return reply.status(404).send({ message: 'Tag not found' });
+  fastify.get<{ Params: z.infer<typeof tagIdParamSchema> }>(
+    '/:id',
+    {
+      preHandler: [validateParams(tagIdParamSchema)],
+    },
+    async (request, reply) => {
+      try {
+        const tag = await tagService.getTagById(request.params.id, request.user!.userId);
+        reply.send({ tag });
+      } catch (error: any) {
+        if (error.message === 'Tag not found') {
+          return reply.status(404).send({ message: 'Tag not found' });
+        }
+        fastify.log.error(error);
+        reply.status(500).send({ message: 'Failed to get tag' });
       }
-      fastify.log.error(error);
-      reply.status(500).send({ message: 'Failed to get tag' });
     }
-  });
+  );
 
   // Rename tag
-  fastify.patch(
+  fastify.patch<{ Params: z.infer<typeof tagIdParamSchema>; Body: z.infer<typeof renameTagSchema> }>(
     '/:id',
-    async (
-      request: FastifyRequest<{ Params: { id: string }; Body: z.infer<typeof renameTagSchema> }>,
-      reply: FastifyReply
-    ) => {
+    {
+      preHandler: [validateParams(tagIdParamSchema), validateBody(renameTagSchema)],
+    },
+    async (request, reply) => {
       try {
-        const { name } = renameTagSchema.parse(request.body);
+        const { name } = request.body;
         const tag = await tagService.renameTag(request.params.id, request.user!.userId, name);
         reply.send({ tag });
       } catch (error: any) {
-        if (error instanceof z.ZodError) {
-          return reply.status(400).send({ message: 'Invalid request', errors: error.errors });
-        }
         if (error.message === 'Tag not found') {
           return reply.status(404).send({ message: 'Tag not found' });
         }
@@ -104,16 +109,22 @@ export async function tagRoutes(fastify: FastifyInstance) {
   );
 
   // Delete tag
-  fastify.delete('/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-    try {
-      await tagService.deleteTag(request.params.id, request.user!.userId);
-      reply.send({ message: 'Tag deleted successfully' });
-    } catch (error: any) {
-      if (error.message === 'Tag not found') {
-        return reply.status(404).send({ message: 'Tag not found' });
+  fastify.delete<{ Params: z.infer<typeof tagIdParamSchema> }>(
+    '/:id',
+    {
+      preHandler: [validateParams(tagIdParamSchema)],
+    },
+    async (request, reply) => {
+      try {
+        await tagService.deleteTag(request.params.id, request.user!.userId);
+        reply.send({ message: 'Tag deleted successfully' });
+      } catch (error: any) {
+        if (error.message === 'Tag not found') {
+          return reply.status(404).send({ message: 'Tag not found' });
+        }
+        fastify.log.error(error);
+        reply.status(500).send({ message: 'Failed to delete tag' });
       }
-      fastify.log.error(error);
-      reply.status(500).send({ message: 'Failed to delete tag' });
     }
-  });
+  );
 }

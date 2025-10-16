@@ -76,6 +76,9 @@ export function TagInput({ tags, onChange, disabled = false }: TagInputProps) {
     // Check if tag already exists (case-insensitive)
     const existingTagNames = tags.map((t) => t.name.toLowerCase());
     if (existingTagNames.includes(trimmedName.toLowerCase())) {
+      // Don't clear input on duplicate to provide user feedback
+      setShowSuggestions(false);
+      setSelectedIndex(-1);
       return;
     }
 

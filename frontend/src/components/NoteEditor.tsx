@@ -90,14 +90,18 @@ export function NoteEditor({ noteId, onNoteDeleted }: NoteEditorProps) {
 
     setIsSaving(true);
     try {
-      await notesApi.update(note.id, {
+      const response = await notesApi.update(note.id, {
         title,
         content,
         tags: currentTagNames,
       });
-      setLastSaved(new Date());
-      // Update local note
-      setNote({ ...note, title, content, tags });
+      const updatedNote = response.data.note;
+      setLastSaved(new Date(updatedNote.updatedAt));
+      // Update local state with canonical data from server (important for tag IDs)
+      setNote(updatedNote);
+      setTitle(updatedNote.title);
+      setContent(updatedNote.content || '');
+      setTags(updatedNote.tags || []);
     } catch (error) {
       console.error('Failed to save note:', error);
     } finally {

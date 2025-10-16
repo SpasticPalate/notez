@@ -55,6 +55,7 @@ export async function getTagById(tagId: string, userId: string) {
 
 /**
  * Rename a tag
+ * Uses database unique constraint to prevent duplicates atomically
  */
 export async function renameTag(tagId: string, userId: string, newName: string) {
   // Check if tag exists and belongs to user
@@ -69,37 +70,32 @@ export async function renameTag(tagId: string, userId: string, newName: string) 
     throw new Error('Tag not found');
   }
 
-  // Check if another tag with the same name already exists
-  const existingTag = await prisma.tag.findUnique({
-    where: {
-      userId_name: {
-        userId,
-        name: newName,
+  try {
+    // Rename the tag - let database constraint handle duplicate check atomically
+    const updatedTag = await prisma.tag.update({
+      where: { id: tagId },
+      data: { name: newName },
+      include: {
+        _count: {
+          select: { notes: true },
+        },
       },
-    },
-  });
+    });
 
-  if (existingTag && existingTag.id !== tagId) {
-    throw new Error('A tag with this name already exists');
+    return {
+      id: updatedTag.id,
+      name: updatedTag.name,
+      noteCount: updatedTag._count.notes,
+      createdAt: updatedTag.createdAt,
+    };
+  } catch (error: any) {
+    // Handle unique constraint violation
+    if (error.code === 'P2002' && error.meta?.target?.includes('userId_name')) {
+      throw new Error('A tag with this name already exists');
+    }
+    // Re-throw other errors
+    throw error;
   }
-
-  // Rename the tag
-  const updatedTag = await prisma.tag.update({
-    where: { id: tagId },
-    data: { name: newName },
-    include: {
-      _count: {
-        select: { notes: true },
-      },
-    },
-  });
-
-  return {
-    id: updatedTag.id,
-    name: updatedTag.name,
-    noteCount: updatedTag._count.notes,
-    createdAt: updatedTag.createdAt,
-  };
 }
 
 /**
