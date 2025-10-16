@@ -67,6 +67,11 @@ api.interceptors.response.use(
 
 // API endpoints
 export const authApi = {
+  setupNeeded: () => api.get('/api/auth/setup-needed'),
+
+  setup: (data: { username: string; email: string; password: string }) =>
+    api.post('/api/auth/setup', data),
+
   login: (credentials: { usernameOrEmail: string; password: string }) =>
     api.post('/api/auth/login', credentials),
 
@@ -75,6 +80,9 @@ export const authApi = {
   refresh: () => api.post('/api/auth/refresh'),
 
   me: () => api.get('/api/auth/me'),
+
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    api.post('/api/auth/change-password', data),
 };
 
 export const notesApi = {
