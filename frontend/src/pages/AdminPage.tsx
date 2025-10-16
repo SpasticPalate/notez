@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usersApi } from '../lib/api';
-import { Users, UserPlus, Key, UserX, UserCheck, ArrowLeft } from 'lucide-react';
+import { Users, UserPlus, Key, UserX, UserCheck, ArrowLeft, Bot } from 'lucide-react';
+import { AISettings } from '../components/AISettings';
 
 interface User {
   id: string;
@@ -16,6 +17,7 @@ interface User {
 export function AdminPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'users' | 'ai'>('users');
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -141,21 +143,51 @@ export function AdminPage() {
 
       {/* Main Content */}
       <div className="max-w-6xl mx-auto py-8 px-4">
-        <div className="bg-white rounded-lg shadow">
-          {/* Header */}
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Users className="w-6 h-6 text-gray-600" />
-              <h2 className="text-lg font-semibold text-gray-900">User Management</h2>
-            </div>
+        {/* Tabs */}
+        <div className="bg-white rounded-t-lg shadow border-b border-gray-200">
+          <div className="flex space-x-1 px-6">
             <button
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              onClick={() => setActiveTab('users')}
+              className={`flex items-center space-x-2 px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
+                activeTab === 'users'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+              }`}
             >
-              <UserPlus className="w-4 h-4" />
-              <span>Create User</span>
+              <Users className="w-4 h-4" />
+              <span>User Management</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('ai')}
+              className={`flex items-center space-x-2 px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
+                activeTab === 'ai'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+              }`}
+            >
+              <Bot className="w-4 h-4" />
+              <span>AI Settings</span>
             </button>
           </div>
+        </div>
+
+        <div className="bg-white rounded-b-lg shadow">
+          {activeTab === 'users' ? (
+            <>
+              {/* User Management Header */}
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Users className="w-6 h-6 text-gray-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">User Management</h2>
+                </div>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Create User</span>
+                </button>
+              </div>
 
           {/* Users List */}
           <div className="divide-y divide-gray-200">
@@ -217,6 +249,12 @@ export function AdminPage() {
               ))
             )}
           </div>
+            </>
+          ) : (
+            <div className="p-6">
+              <AISettings />
+            </div>
+          )}
         </div>
       </div>
 
