@@ -102,6 +102,9 @@ export async function tagRoutes(fastify: FastifyInstance) {
         if (error.message === 'A tag with this name already exists') {
           return reply.status(409).send({ message: error.message });
         }
+        if (error.message === 'Tag name cannot be empty') {
+          return reply.status(400).send({ message: error.message });
+        }
         fastify.log.error(error);
         reply.status(500).send({ message: 'Failed to rename tag' });
       }

@@ -58,6 +58,13 @@ export async function getTagById(tagId: string, userId: string) {
  * Uses database unique constraint to prevent duplicates atomically
  */
 export async function renameTag(tagId: string, userId: string, newName: string) {
+  // Trim the new name to prevent whitespace issues
+  const trimmedName = newName.trim();
+
+  if (trimmedName.length === 0) {
+    throw new Error('Tag name cannot be empty');
+  }
+
   // Check if tag exists and belongs to user
   const tag = await prisma.tag.findFirst({
     where: {
@@ -74,7 +81,7 @@ export async function renameTag(tagId: string, userId: string, newName: string) 
     // Rename the tag - let database constraint handle duplicate check atomically
     const updatedTag = await prisma.tag.update({
       where: { id: tagId },
-      data: { name: newName },
+      data: { name: trimmedName },
       include: {
         _count: {
           select: { notes: true },
@@ -90,7 +97,9 @@ export async function renameTag(tagId: string, userId: string, newName: string) 
     };
   } catch (error: any) {
     // Handle unique constraint violation
-    if (error.code === 'P2002' && error.meta?.target?.includes('userId_name')) {
+    // Prisma returns target as an array like ['userId', 'name']
+    const target = error.meta?.target;
+    if (error.code === 'P2002' && Array.isArray(target) && target.includes('userId') && target.includes('name')) {
       throw new Error('A tag with this name already exists');
     }
     // Re-throw other errors

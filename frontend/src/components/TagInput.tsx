@@ -18,8 +18,11 @@ export function TagInput({ tags, onChange, disabled = false }: TagInputProps) {
   const [suggestions, setSuggestions] = useState<Tag[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load suggestions when input changes
   useEffect(() => {
@@ -27,8 +30,13 @@ export function TagInput({ tags, onChange, disabled = false }: TagInputProps) {
       if (inputValue.trim().length === 0) {
         setSuggestions([]);
         setShowSuggestions(false);
+        setIsLoading(false);
+        setError(null);
         return;
       }
+
+      setIsLoading(true);
+      setError(null);
 
       try {
         const response = await tagsApi.search(inputValue, 10);
@@ -41,15 +49,31 @@ export function TagInput({ tags, onChange, disabled = false }: TagInputProps) {
         );
 
         setSuggestions(filteredTags);
-        setShowSuggestions(filteredTags.length > 0);
+        setShowSuggestions(filteredTags.length > 0 || inputValue.trim().length > 0);
         setSelectedIndex(-1);
-      } catch (error) {
-        console.error('Failed to load tag suggestions:', error);
+      } catch (err) {
+        console.error('Failed to load tag suggestions:', err);
+        setError('Failed to load suggestions');
+        setSuggestions([]);
+        setShowSuggestions(false);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    const debounceTimeout = setTimeout(loadSuggestions, 200);
-    return () => clearTimeout(debounceTimeout);
+    // Clear existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Set new timeout
+    debounceTimeoutRef.current = setTimeout(loadSuggestions, 200);
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
   }, [inputValue, tags]);
 
   // Close suggestions when clicking outside
@@ -102,6 +126,9 @@ export function TagInput({ tags, onChange, disabled = false }: TagInputProps) {
       if (showSuggestions && selectedIndex >= 0 && selectedIndex < suggestions.length) {
         // Select highlighted suggestion
         addTag(suggestions[selectedIndex].name);
+      } else if (showSuggestions && selectedIndex === suggestions.length && inputValue.trim().length > 0) {
+        // Create new tag (when "Create" option is highlighted)
+        addTag(inputValue);
       } else if (inputValue.trim().length > 0) {
         // Add new tag from input
         addTag(inputValue);
@@ -111,8 +138,12 @@ export function TagInput({ tags, onChange, disabled = false }: TagInputProps) {
       setSelectedIndex(-1);
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (showSuggestions && suggestions.length > 0) {
-        setSelectedIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : prev));
+      if (showSuggestions) {
+        // Calculate max index: suggestions + optional "Create new" option
+        const hasCreateOption = inputValue.trim().length > 0 &&
+          !suggestions.some((s) => s.name.toLowerCase() === inputValue.trim().toLowerCase());
+        const maxIndex = hasCreateOption ? suggestions.length : suggestions.length - 1;
+        setSelectedIndex((prev) => (prev < maxIndex ? prev + 1 : prev));
       }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
@@ -164,45 +195,78 @@ export function TagInput({ tags, onChange, disabled = false }: TagInputProps) {
       </div>
 
       {/* Suggestions Dropdown */}
-      {showSuggestions && suggestions.length > 0 && (
+      {showSuggestions && (
         <div
           ref={suggestionsRef}
           className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto"
         >
-          {suggestions.map((tag, index) => (
+          {isLoading && (
+            <div className="px-3 py-2 text-sm text-gray-500 text-center">
+              Loading suggestions...
+            </div>
+          )}
+
+          {error && !isLoading && (
+            <div className="px-3 py-2 text-sm text-red-600 text-center">
+              {error}
+            </div>
+          )}
+
+          {!isLoading && !error && suggestions.length === 0 && inputValue.trim().length > 0 && (
             <button
-              key={tag.id}
               type="button"
-              onClick={() => addTag(tag.name)}
+              onClick={() => addTag(inputValue)}
               className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 ${
-                index === selectedIndex ? 'bg-blue-50' : ''
+                selectedIndex === 0 ? 'bg-blue-50' : ''
               }`}
             >
               <div className="flex items-center gap-2">
-                <Plus className="w-3 h-3 text-gray-400" />
-                <span>{tag.name}</span>
+                <Plus className="w-3 h-3 text-green-500" />
+                <span>
+                  Create "<span className="font-medium">{inputValue.trim()}</span>"
+                </span>
               </div>
             </button>
-          ))}
+          )}
 
-          {/* Option to create new tag if input doesn't match any suggestion */}
-          {inputValue.trim().length > 0 &&
-            !suggestions.some((s) => s.name.toLowerCase() === inputValue.trim().toLowerCase()) && (
-              <button
-                type="button"
-                onClick={() => addTag(inputValue)}
-                className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 border-t border-gray-200 ${
-                  selectedIndex === suggestions.length ? 'bg-blue-50' : ''
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Plus className="w-3 h-3 text-green-500" />
-                  <span>
-                    Create "<span className="font-medium">{inputValue.trim()}</span>"
-                  </span>
-                </div>
-              </button>
-            )}
+          {!isLoading && !error && suggestions.length > 0 && (
+            <>
+              {suggestions.map((tag, index) => (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => addTag(tag.name)}
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 ${
+                    index === selectedIndex ? 'bg-blue-50' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Plus className="w-3 h-3 text-gray-400" />
+                    <span>{tag.name}</span>
+                  </div>
+                </button>
+              ))}
+
+              {/* Option to create new tag if input doesn't match any suggestion */}
+              {inputValue.trim().length > 0 &&
+                !suggestions.some((s) => s.name.toLowerCase() === inputValue.trim().toLowerCase()) && (
+                  <button
+                    type="button"
+                    onClick={() => addTag(inputValue)}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 border-t border-gray-200 ${
+                      selectedIndex === suggestions.length ? 'bg-blue-50' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Plus className="w-3 h-3 text-green-500" />
+                      <span>
+                        Create "<span className="font-medium">{inputValue.trim()}</span>"
+                      </span>
+                    </div>
+                  </button>
+                )}
+            </>
+          )}
         </div>
       )}
     </div>
