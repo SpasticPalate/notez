@@ -14,7 +14,7 @@ export function ChangePasswordPage({ isRequired = false }: ChangePasswordPagePro
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, updateUser } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +45,9 @@ export function ChangePasswordPage({ isRequired = false }: ChangePasswordPagePro
 
     try {
       await authApi.changePassword({ currentPassword, newPassword });
+
+      // Update user state to clear mustChangePassword flag
+      updateUser({ mustChangePassword: false });
 
       // Success - redirect to main app
       navigate('/');

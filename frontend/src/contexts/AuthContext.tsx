@@ -16,6 +16,8 @@ interface AuthContextType {
   setupNeeded: boolean;
   login: (usernameOrEmail: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (userData: Partial<User>) => void;
+  refreshAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -100,6 +102,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateUser = (userData: Partial<User>) => {
+    setUser((current) => (current ? { ...current, ...userData } : null));
+  };
+
+  const refreshAuth = async () => {
+    await checkSetupAndAuth();
+  };
+
   const value = {
     user,
     isLoading,
@@ -107,6 +117,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setupNeeded,
     login,
     logout,
+    updateUser,
+    refreshAuth,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

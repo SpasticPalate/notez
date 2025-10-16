@@ -18,14 +18,24 @@ function AppRoutes() {
     );
   }
 
-  // If setup is needed, show setup page
+  // If setup is needed, redirect to setup page
   if (setupNeeded) {
-    return <SetupPage />;
+    return (
+      <Routes>
+        <Route path="/setup" element={<SetupPage />} />
+        <Route path="*" element={<Navigate to="/setup" replace />} />
+      </Routes>
+    );
   }
 
-  // If logged in and must change password, show change password page
+  // If logged in and must change password, redirect to change password page
   if (user?.mustChangePassword) {
-    return <ChangePasswordPage isRequired={true} />;
+    return (
+      <Routes>
+        <Route path="/change-password" element={<ChangePasswordPage isRequired={true} />} />
+        <Route path="*" element={<Navigate to="/change-password" replace />} />
+      </Routes>
+    );
   }
 
   return (

@@ -80,11 +80,20 @@ export function AdminPage() {
   };
 
   const handleToggleActive = async (userId: string, currentlyActive: boolean) => {
+    // Optimistic update - update UI immediately
+    const originalUsers = [...users];
+    setUsers((currentUsers) =>
+      currentUsers.map((u) =>
+        u.id === userId ? { ...u, isActive: !currentlyActive } : u
+      )
+    );
+
     try {
       await usersApi.update(userId, { isActive: !currentlyActive });
-      loadUsers();
     } catch (error) {
       console.error('Failed to toggle user status:', error);
+      // Revert on error
+      setUsers(originalUsers);
       alert('Failed to update user status');
     }
   };

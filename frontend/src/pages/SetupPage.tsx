@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 
 export function SetupPage() {
   const [username, setUsername] = useState('');
@@ -10,6 +11,7 @@ export function SetupPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { refreshAuth } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,12 +46,11 @@ export function SetupPage() {
       // Store access token
       localStorage.setItem('accessToken', response.data.accessToken);
 
-      // Redirect to main app
+      // Refresh auth state and redirect
+      await refreshAuth();
       navigate('/');
-      window.location.reload(); // Force reload to update auth state
     } catch (err: any) {
       setError(err.response?.data?.message || 'Setup failed. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };
