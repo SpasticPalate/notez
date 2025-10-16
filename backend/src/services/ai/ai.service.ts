@@ -13,140 +13,146 @@ import { OpenAIProvider } from './providers/openai.provider';
 import { GeminiProvider } from './providers/gemini.provider';
 import { decrypt, encrypt } from '../../utils/encryption';
 
-const AI_PROVIDER_KEY = 'ai_provider';
-const AI_API_KEY_KEY = 'ai_api_key';
-const AI_MODEL_KEY = 'ai_model';
-
 /**
  * AI Service
  *
- * Manages AI provider configuration and provides unified interface for AI operations
+ * Manages per-user AI provider configuration and provides unified interface for AI operations
  */
 export class AIService {
-  private cachedProvider: AIProvider | null = null;
-  private cachedConfig: AIProviderConfig | null = null;
+  private providerCache: Map<string, AIProvider> = new Map();
+  private configCache: Map<string, AIProviderConfig> = new Map();
 
   /**
-   * Get the currently configured AI provider
-   * @throws AIProviderNotConfiguredError if no provider is configured
+   * Get the AI provider for a specific user
+   * @param userId User ID
+   * @throws AIProviderNotConfiguredError if user has not configured AI
    */
-  private async getProvider(): Promise<AIProvider> {
-    // Check if we have a cached provider
-    if (this.cachedProvider && this.cachedConfig) {
-      return this.cachedProvider;
+  private async getProviderForUser(userId: string): Promise<AIProvider> {
+    // Check if we have a cached provider for this user
+    if (this.providerCache.has(userId) && this.configCache.has(userId)) {
+      return this.providerCache.get(userId)!;
     }
 
     // Load configuration from database
-    const config = await this.getConfiguration();
+    const config = await this.getUserConfiguration(userId);
     if (!config) {
       throw new AIProviderNotConfiguredError();
     }
 
     // Create provider instance
-    this.cachedProvider = this.createProvider(config);
-    this.cachedConfig = config;
+    const provider = this.createProvider(config);
 
-    return this.cachedProvider;
+    // Cache the provider and config
+    this.providerCache.set(userId, provider);
+    this.configCache.set(userId, config);
+
+    return provider;
   }
 
   /**
-   * Get AI provider configuration from database
+   * Get AI provider configuration for a specific user
+   * @param userId User ID
    */
-  async getConfiguration(): Promise<AIProviderConfig | null> {
-    const [providerSetting, apiKeySetting, modelSetting] = await Promise.all([
-      prisma.systemSetting.findUnique({ where: { key: AI_PROVIDER_KEY } }),
-      prisma.systemSetting.findUnique({ where: { key: AI_API_KEY_KEY } }),
-      prisma.systemSetting.findUnique({ where: { key: AI_MODEL_KEY } }),
-    ]);
+  async getUserConfiguration(userId: string): Promise<AIProviderConfig | null> {
+    const settings = await prisma.userAISettings.findUnique({
+      where: { userId },
+    });
 
-    if (!providerSetting?.value || !apiKeySetting?.value) {
+    if (!settings) {
       return null;
     }
 
-    const provider = providerSetting.value as AIProviderType;
-    const encryptedApiKey = apiKeySetting.value;
-    const model = modelSetting?.value || undefined;
-
     // Decrypt API key
-    const apiKey = decrypt(encryptedApiKey);
+    const apiKey = decrypt(settings.encryptedApiKey);
 
     return {
-      provider,
+      provider: settings.provider as AIProviderType,
       apiKey,
-      model,
+      model: settings.model || undefined,
     };
   }
 
   /**
-   * Save AI provider configuration to database
+   * Save AI provider configuration for a specific user
+   * @param userId User ID
+   * @param config AI provider configuration
    */
-  async saveConfiguration(config: AIProviderConfig): Promise<void> {
+  async saveUserConfiguration(userId: string, config: AIProviderConfig): Promise<void> {
     // Encrypt API key before storing
     const encryptedApiKey = encrypt(config.apiKey);
 
-    // Save to database using upsert to handle both create and update
-    await Promise.all([
-      prisma.systemSetting.upsert({
-        where: { key: AI_PROVIDER_KEY },
-        create: { key: AI_PROVIDER_KEY, value: config.provider, encrypted: false },
-        update: { value: config.provider },
-      }),
-      prisma.systemSetting.upsert({
-        where: { key: AI_API_KEY_KEY },
-        create: { key: AI_API_KEY_KEY, value: encryptedApiKey, encrypted: true },
-        update: { value: encryptedApiKey },
-      }),
-      config.model
-        ? prisma.systemSetting.upsert({
-            where: { key: AI_MODEL_KEY },
-            create: { key: AI_MODEL_KEY, value: config.model, encrypted: false },
-            update: { value: config.model },
-          })
-        : prisma.systemSetting.deleteMany({ where: { key: AI_MODEL_KEY } }),
-    ]);
+    // Save to database using upsert
+    await prisma.userAISettings.upsert({
+      where: { userId },
+      create: {
+        userId,
+        provider: config.provider,
+        encryptedApiKey,
+        model: config.model || null,
+      },
+      update: {
+        provider: config.provider,
+        encryptedApiKey,
+        model: config.model || null,
+      },
+    });
 
-    // Clear cache so next request will use new configuration
-    this.cachedProvider = null;
-    this.cachedConfig = null;
+    // Clear cache for this user so next request will use new configuration
+    this.providerCache.delete(userId);
+    this.configCache.delete(userId);
   }
 
   /**
-   * Test connection to the currently configured AI provider
+   * Delete AI configuration for a specific user
+   * @param userId User ID
+   */
+  async deleteUserConfiguration(userId: string): Promise<void> {
+    await prisma.userAISettings.delete({
+      where: { userId },
+    });
+
+    // Clear cache
+    this.providerCache.delete(userId);
+    this.configCache.delete(userId);
+  }
+
+  /**
+   * Test connection to AI provider with given configuration
+   * @param config AI provider configuration to test
    * @throws Error if connection fails
    */
-  async testConnection(config?: AIProviderConfig): Promise<boolean> {
-    // If config provided, test with that (for validation before saving)
-    if (config) {
-      const provider = this.createProvider(config);
-      return provider.testConnection();
-    }
-
-    // Otherwise test with current configuration
-    const provider = await this.getProvider();
+  async testConnection(config: AIProviderConfig): Promise<boolean> {
+    const provider = this.createProvider(config);
     return provider.testConnection();
   }
 
   /**
-   * Summarize note content
+   * Summarize note content for a specific user
+   * @param userId User ID
+   * @param options Summarization options
    */
-  async summarize(options: AISummarizeOptions): Promise<string> {
-    const provider = await this.getProvider();
+  async summarize(userId: string, options: AISummarizeOptions): Promise<string> {
+    const provider = await this.getProviderForUser(userId);
     return provider.summarize(options);
   }
 
   /**
-   * Suggest title for note content
+   * Suggest title for note content for a specific user
+   * @param userId User ID
+   * @param options Title suggestion options
    */
-  async suggestTitle(options: AISuggestTitleOptions): Promise<string> {
-    const provider = await this.getProvider();
+  async suggestTitle(userId: string, options: AISuggestTitleOptions): Promise<string> {
+    const provider = await this.getProviderForUser(userId);
     return provider.suggestTitle(options);
   }
 
   /**
-   * Suggest tags for note content
+   * Suggest tags for note content for a specific user
+   * @param userId User ID
+   * @param options Tag suggestion options
    */
-  async suggestTags(options: AISuggestTagsOptions): Promise<string[]> {
-    const provider = await this.getProvider();
+  async suggestTags(userId: string, options: AISuggestTagsOptions): Promise<string[]> {
+    const provider = await this.getProviderForUser(userId);
     return provider.suggestTags(options);
   }
 
@@ -167,11 +173,17 @@ export class AIService {
   }
 
   /**
-   * Clear cached provider (useful for testing)
+   * Clear cached provider for a user (useful for testing)
+   * @param userId User ID (optional - if not provided, clears all)
    */
-  clearCache(): void {
-    this.cachedProvider = null;
-    this.cachedConfig = null;
+  clearCache(userId?: string): void {
+    if (userId) {
+      this.providerCache.delete(userId);
+      this.configCache.delete(userId);
+    } else {
+      this.providerCache.clear();
+      this.configCache.clear();
+    }
   }
 }
 

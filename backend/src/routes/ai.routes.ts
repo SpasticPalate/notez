@@ -24,20 +24,16 @@ import { validateBody } from '../middleware/validate.middleware';
  * Endpoints for AI provider configuration and AI-powered features
  */
 export async function aiRoutes(fastify: FastifyInstance) {
-  // ==================== Admin Settings Endpoints ====================
+  // ==================== User Settings Endpoints ====================
 
   /**
    * GET /api/ai/settings
-   * Get current AI provider configuration (admin only)
+   * Get current user's AI provider configuration
    */
   fastify.get('/settings', async (request, reply) => {
     try {
-      // Check admin role
-      if (request.user?.role !== 'admin') {
-        return reply.status(403).send({ message: 'Admin access required' });
-      }
-
-      const config = await aiService.getConfiguration();
+      const userId = request.user!.userId;
+      const config = await aiService.getUserConfiguration(userId);
 
       if (!config) {
         return reply.send({
@@ -61,7 +57,7 @@ export async function aiRoutes(fastify: FastifyInstance) {
 
   /**
    * PUT /api/ai/settings
-   * Update AI provider configuration (admin only)
+   * Update current user's AI provider configuration
    */
   fastify.put<{ Body: AIConfigInput }>(
     '/settings',
@@ -70,11 +66,7 @@ export async function aiRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
-        // Check admin role
-        if (request.user?.role !== 'admin') {
-          return reply.status(403).send({ message: 'Admin access required' });
-        }
-
+        const userId = request.user!.userId;
         const config = request.body;
 
         // Test connection before saving
@@ -84,8 +76,8 @@ export async function aiRoutes(fastify: FastifyInstance) {
           return reply.status(400).send({ message: 'Failed to connect to AI provider with provided credentials' });
         }
 
-        // Save configuration
-        await aiService.saveConfiguration(config);
+        // Save configuration for this user
+        await aiService.saveUserConfiguration(userId, config);
 
         reply.send({ message: 'AI settings saved successfully', configured: true });
       } catch (error: any) {
@@ -109,7 +101,7 @@ export async function aiRoutes(fastify: FastifyInstance) {
 
   /**
    * POST /api/ai/test-connection
-   * Test connection to AI provider (admin only)
+   * Test connection to AI provider with given credentials
    */
   fastify.post<{ Body: AIConfigInput }>(
     '/test-connection',
@@ -118,11 +110,6 @@ export async function aiRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
-        // Check admin role
-        if (request.user?.role !== 'admin') {
-          return reply.status(403).send({ message: 'Admin access required' });
-        }
-
         const config = request.body;
         const connectionOk = await aiService.testConnection(config);
 
@@ -163,9 +150,10 @@ export async function aiRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
+        const userId = request.user!.userId;
         const { content, maxLength } = request.body;
 
-        const summary = await aiService.summarize({
+        const summary = await aiService.summarize(userId, {
           content,
           maxLength,
         });
@@ -205,9 +193,10 @@ export async function aiRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
+        const userId = request.user!.userId;
         const { content, maxLength } = request.body;
 
-        const title = await aiService.suggestTitle({
+        const title = await aiService.suggestTitle(userId, {
           content,
           maxLength,
         });
@@ -247,9 +236,10 @@ export async function aiRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
+        const userId = request.user!.userId;
         const { content, maxTags } = request.body;
 
-        const tags = await aiService.suggestTags({
+        const tags = await aiService.suggestTags(userId, {
           content,
           maxTags,
         });
