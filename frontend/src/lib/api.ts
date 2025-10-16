@@ -1,0 +1,109 @@
+import axios from 'axios';
+
+// API base URL - use environment variable or default to localhost
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+// Create axios instance with default config
+export const api = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true, // Important for cookies (refresh token)
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Request interceptor to add access token to requests
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor to handle token refresh
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If 401 and we haven't tried to refresh yet
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        // Try to refresh the token
+        const response = await axios.post(
+          `${API_BASE_URL}/api/auth/refresh`,
+          {},
+          { withCredentials: true }
+        );
+
+        const { accessToken } = response.data;
+
+        // Store new access token
+        localStorage.setItem('accessToken', accessToken);
+
+        // Retry original request with new token
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        // Refresh failed, clear tokens and signal auth failure
+        localStorage.removeItem('accessToken');
+        // Dispatch custom event to notify AuthContext
+        window.dispatchEvent(new Event('auth-failure'));
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// API endpoints
+export const authApi = {
+  login: (credentials: { usernameOrEmail: string; password: string }) =>
+    api.post('/api/auth/login', credentials),
+
+  logout: () => api.post('/api/auth/logout'),
+
+  refresh: () => api.post('/api/auth/refresh'),
+
+  me: () => api.get('/api/auth/me'),
+};
+
+export const notesApi = {
+  list: (params?: { folderId?: string; search?: string; limit?: number; offset?: number }) =>
+    api.get('/api/notes', { params }),
+
+  get: (id: string) => api.get(`/api/notes/${id}`),
+
+  create: (data: { title: string; content?: string; folderId?: string; tags?: string[] }) =>
+    api.post('/api/notes', data),
+
+  update: (id: string, data: { title?: string; content?: string; folderId?: string | null; tags?: string[] }) =>
+    api.patch(`/api/notes/${id}`, data),
+
+  delete: (id: string) => api.delete(`/api/notes/${id}`),
+
+  stats: () => api.get('/api/notes/stats'),
+};
+
+export const foldersApi = {
+  list: () => api.get('/api/folders'),
+
+  get: (id: string) => api.get(`/api/folders/${id}`),
+
+  create: (data: { name: string }) => api.post('/api/folders', data),
+
+  update: (id: string, data: { name: string }) => api.patch(`/api/folders/${id}`, data),
+
+  delete: (id: string) => api.delete(`/api/folders/${id}`),
+
+  stats: () => api.get('/api/folders/stats'),
+};
