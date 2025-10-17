@@ -55,7 +55,7 @@ export function AISettings() {
       const response = await aiApi.testConnection({
         provider,
         apiKey,
-        model: model || undefined,
+        model: model || providerInfo[provider].defaultModel,
       });
 
       setTestResult({
@@ -83,7 +83,7 @@ export function AISettings() {
       await aiApi.saveSettings({
         provider,
         apiKey,
-        model: model || undefined,
+        model: model || providerInfo[provider].defaultModel,
       });
 
       setSuccess('AI settings saved successfully! Connection tested and verified.');
@@ -100,20 +100,39 @@ export function AISettings() {
     anthropic: {
       name: 'Anthropic Claude',
       defaultModel: 'claude-3-5-sonnet-20241022',
-      description: 'Claude 3.5 Sonnet - Powerful and versatile AI model',
+      description: 'Claude models - Powerful and versatile',
       keyFormat: 'sk-ant-api03-...',
+      models: [
+        { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet (Recommended)', description: 'Most capable model' },
+        { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku (Latest)', description: 'Fast and efficient' },
+        { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus', description: 'Previous generation flagship' },
+        { value: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet', description: 'Balanced performance' },
+        { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku', description: 'Fast and cost-effective' },
+      ],
     },
     openai: {
       name: 'OpenAI GPT',
       defaultModel: 'gpt-4o-mini',
-      description: 'GPT-4o Mini - Fast and cost-effective',
+      description: 'GPT models - Versatile and powerful',
       keyFormat: 'sk-...',
+      models: [
+        { value: 'gpt-4o', label: 'GPT-4o (Recommended)', description: 'Most capable GPT-4 model' },
+        { value: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Fast and cost-effective' },
+        { value: 'gpt-4-turbo', label: 'GPT-4 Turbo', description: 'Fast GPT-4 variant' },
+        { value: 'gpt-4', label: 'GPT-4', description: 'Standard GPT-4' },
+        { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', description: 'Fast and economical' },
+      ],
     },
     gemini: {
       name: 'Google Gemini',
       defaultModel: 'gemini-1.5-flash',
-      description: 'Gemini 1.5 Flash - Quick and efficient',
+      description: 'Gemini models - Fast and efficient',
       keyFormat: 'AIza...',
+      models: [
+        { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Recommended)', description: 'Most capable model' },
+        { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', description: 'Fast and efficient' },
+        { value: 'gemini-1.0-pro', label: 'Gemini 1.0 Pro', description: 'Previous generation' },
+      ],
     },
   };
 
@@ -203,11 +222,12 @@ export function AISettings() {
             <select
               value={provider}
               onChange={(e) => {
-                setProvider(e.target.value as AIProvider);
-                setModel(''); // Reset model when provider changes
+                const newProvider = e.target.value as AIProvider;
+                setProvider(newProvider);
+                setModel(providerInfo[newProvider].defaultModel); // Set to default model of new provider
                 setTestResult(null);
               }}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
             >
               <option value="anthropic">Anthropic Claude</option>
               <option value="openai">OpenAI GPT</option>
@@ -235,23 +255,27 @@ export function AISettings() {
             </p>
           </div>
 
-          {/* Model Override (Optional) */}
+          {/* Model Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-              Model (Optional)
+              Model
             </label>
-            <input
-              type="text"
-              value={model}
+            <select
+              value={model || providerInfo[provider].defaultModel}
               onChange={(e) => {
                 setModel(e.target.value);
                 setTestResult(null);
               }}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-              placeholder={providerInfo[provider].defaultModel}
-            />
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            >
+              {providerInfo[provider].models.map((modelOption) => (
+                <option key={modelOption.value} value={modelOption.value}>
+                  {modelOption.label} - {modelOption.description}
+                </option>
+              ))}
+            </select>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Leave empty to use the default model: {providerInfo[provider].defaultModel}
+              Default: {providerInfo[provider].models.find(m => m.value === providerInfo[provider].defaultModel)?.label}
             </p>
           </div>
 
