@@ -170,3 +170,8 @@ export const aiApi = {
   suggestTags: (data: { content: string; maxTags?: number }) =>
     api.post('/api/ai/suggest-tags', data),
 };
+
+export const searchApi = {
+  search: (params: { q: string; folderId?: string; limit?: number; offset?: number }) =>
+    api.get('/api/search', { params }),
+};

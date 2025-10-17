@@ -1,18 +1,30 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FolderSidebar } from '../components/FolderSidebar';
 import { NoteList } from '../components/NoteList';
 import { NoteEditor } from '../components/NoteEditor';
+import { SearchBar } from '../components/SearchBar';
 import { useAuth } from '../contexts/AuthContext';
 import { Settings } from 'lucide-react';
 
 export function EditorPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Handle URL query parameter for note selection (from search)
+  useEffect(() => {
+    const noteId = searchParams.get('note');
+    if (noteId) {
+      setSelectedNoteId(noteId);
+      // Clear the query parameter after setting the note
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
 
   return (
     <div className="h-screen flex flex-col bg-gray-100">
@@ -22,6 +34,7 @@ export function EditorPage() {
           <h1 className="text-xl font-bold text-gray-900">Notez</h1>
         </div>
         <div className="flex items-center space-x-4">
+          <SearchBar />
           <button
             onClick={() => navigate('/settings')}
             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md"
