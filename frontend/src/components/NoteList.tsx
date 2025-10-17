@@ -94,7 +94,7 @@ export function NoteList({ folderId, tagId, selectedNoteId, onSelectNote }: Note
           <h2 className="font-semibold text-gray-900 dark:text-white">Notes</h2>
           <button
             onClick={handleCreateNote}
-            className="p-1.5 bg-blue-600 dark:bg-blue-50 dark:bg-blue-900/200 text-white rounded-md hover:bg-blue-700"
+            className="p-1.5 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600"
             title="New note"
           >
             <Plus className="w-4 h-4" />

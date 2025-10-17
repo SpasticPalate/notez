@@ -140,7 +140,7 @@ export function FolderSidebar({
                 setShowNewFolderInput(false);
                 setNewFolderName('');
               }}
-              className="px-2 py-1 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:text-white"
+              className="px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
             >
               Cancel
             </button>
