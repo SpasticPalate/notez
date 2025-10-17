@@ -17,6 +17,7 @@ import {
   AIConfigInput,
 } from '../utils/validation.schemas';
 import { validateBody } from '../middleware/validate.middleware';
+import { authenticateToken } from '../middleware/auth.middleware';
 
 /**
  * AI Routes
@@ -24,6 +25,9 @@ import { validateBody } from '../middleware/validate.middleware';
  * Endpoints for AI provider configuration and AI-powered features
  */
 export async function aiRoutes(fastify: FastifyInstance) {
+  // All routes require authentication
+  fastify.addHook('preHandler', authenticateToken);
+
   // ==================== User Settings Endpoints ====================
 
   /**
