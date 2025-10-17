@@ -4,6 +4,7 @@ import { FolderSidebar } from '../components/FolderSidebar';
 import { NoteList } from '../components/NoteList';
 import { NoteEditor } from '../components/NoteEditor';
 import { SearchBar } from '../components/SearchBar';
+import { ThemeToggle } from '../components/ThemeToggle';
 import { useAuth } from '../contexts/AuthContext';
 import { Settings } from 'lucide-react';
 
@@ -27,17 +28,18 @@ export function EditorPage() {
   }, [searchParams, setSearchParams]);
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100">
+    <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
       {/* Top Navigation */}
-      <nav className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+      <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <h1 className="text-xl font-bold text-gray-900">Notez</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Notez</h1>
         </div>
         <div className="flex items-center space-x-4">
           <SearchBar />
+          <ThemeToggle />
           <button
             onClick={() => navigate('/settings')}
-            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md"
+            className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
             title="Settings"
           >
             <Settings className="w-5 h-5" />
@@ -45,17 +47,17 @@ export function EditorPage() {
           {user?.role === 'admin' && (
             <a
               href="/admin"
-              className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 border border-blue-600 rounded-md hover:bg-blue-50"
+              className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 border border-blue-600 dark:border-blue-400 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20"
             >
               Admin Panel
             </a>
           )}
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-gray-600 dark:text-gray-400">
             {user?.username}
           </span>
           <button
             onClick={logout}
-            className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50"
+            className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
           >
             Logout
           </button>

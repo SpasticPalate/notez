@@ -121,7 +121,7 @@ export function AISettings() {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
-        <span className="ml-2 text-gray-600">Loading AI settings...</span>
+        <span className="ml-2 text-gray-600 dark:text-gray-400">Loading AI settings...</span>
       </div>
     );
   }
@@ -129,23 +129,23 @@ export function AISettings() {
   return (
     <div className="space-y-6">
       {/* Current Status */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center space-x-3 mb-4">
-          <Bot className="w-6 h-6 text-gray-600" />
-          <h3 className="text-lg font-semibold text-gray-900">AI Configuration Status</h3>
+          <Bot className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">AI Configuration Status</h3>
         </div>
 
         {config.configured ? (
-          <div className="bg-green-50 border border-green-200 rounded-md p-4">
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 rounded-md p-4">
             <div className="flex items-center space-x-2 text-green-800">
               <Check className="w-5 h-5" />
               <span className="font-medium">AI is configured and ready</span>
             </div>
-            <p className="text-sm text-green-700 mt-2">
+            <p className="text-sm text-green-700 dark:text-green-400 mt-2">
               Provider: <span className="font-medium">{providerInfo[config.provider!]?.name}</span>
             </p>
             {config.model && (
-              <p className="text-sm text-green-700">
+              <p className="text-sm text-green-700 dark:text-green-400">
                 Model: <span className="font-medium">{config.model}</span>
               </p>
             )}
@@ -164,19 +164,19 @@ export function AISettings() {
       </div>
 
       {/* Configuration Form */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           {config.configured ? 'Update AI Configuration' : 'Configure AI Provider'}
         </h3>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800">
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-md text-sm text-red-800">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-sm text-green-800">
+          <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 rounded-md text-sm text-green-800">
             {success}
           </div>
         )}
@@ -185,8 +185,8 @@ export function AISettings() {
           <div
             className={`mb-4 p-3 rounded-md text-sm ${
               testResult.success
-                ? 'bg-green-50 border border-green-200 text-green-800'
-                : 'bg-red-50 border border-red-200 text-red-800'
+                ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 text-green-800'
+                : 'bg-red-50 dark:bg-red-900/20 border border-red-200 text-red-800'
             }`}
           >
             <div className="flex items-center space-x-2">
@@ -199,7 +199,7 @@ export function AISettings() {
         <form onSubmit={handleSave} className="space-y-4">
           {/* Provider Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">AI Provider</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">AI Provider</label>
             <select
               value={provider}
               onChange={(e) => {
@@ -207,18 +207,18 @@ export function AISettings() {
                 setModel(''); // Reset model when provider changes
                 setTestResult(null);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="anthropic">Anthropic Claude</option>
               <option value="openai">OpenAI GPT</option>
               <option value="gemini">Google Gemini</option>
             </select>
-            <p className="mt-1 text-xs text-gray-500">{providerInfo[provider].description}</p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{providerInfo[provider].description}</p>
           </div>
 
           {/* API Key */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">API Key</label>
             <input
               type="password"
               required
@@ -227,17 +227,17 @@ export function AISettings() {
                 setApiKey(e.target.value);
                 setTestResult(null);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
               placeholder={providerInfo[provider].keyFormat}
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Your API key will be encrypted and stored securely
             </p>
           </div>
 
           {/* Model Override (Optional) */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
               Model (Optional)
             </label>
             <input
@@ -247,10 +247,10 @@ export function AISettings() {
                 setModel(e.target.value);
                 setTestResult(null);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
               placeholder={providerInfo[provider].defaultModel}
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Leave empty to use the default model: {providerInfo[provider].defaultModel}
             </p>
           </div>
@@ -261,7 +261,7 @@ export function AISettings() {
               type="button"
               onClick={handleTestConnection}
               disabled={!apiKey || isTesting || isSaving}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             >
               {isTesting ? (
                 <>
@@ -276,7 +276,7 @@ export function AISettings() {
             <button
               type="submit"
               disabled={!apiKey || isSaving || isTesting}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
             >
               {isSaving ? (
                 <>

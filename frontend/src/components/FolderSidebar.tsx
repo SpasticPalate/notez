@@ -81,56 +81,56 @@ export function FolderSidebar({
 
   if (collapsed) {
     return (
-      <div className="w-12 bg-white border-r border-gray-200 flex flex-col items-center py-4">
+      <div className="w-12 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col items-center py-4">
         <button
           onClick={onToggleCollapse}
-          className="p-2 hover:bg-gray-100 rounded-md"
+          className="p-2 hover:bg-gray-100 dark:bg-gray-700 rounded-md"
           title="Expand sidebar"
         >
-          <ChevronRight className="w-5 h-5 text-gray-600" />
+          <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400 dark:text-gray-500" />
         </button>
       </div>
     );
   }
 
   return (
-    <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
+    <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
       {/* Sidebar Header */}
-      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-        <h2 className="font-semibold text-gray-900">Folders</h2>
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        <h2 className="font-semibold text-gray-900 dark:text-white">Folders</h2>
         <div className="flex items-center space-x-1">
           <button
             onClick={() => setShowNewFolderInput(true)}
-            className="p-1.5 hover:bg-gray-100 rounded-md"
+            className="p-1.5 hover:bg-gray-100 dark:bg-gray-700 rounded-md"
             title="New folder"
           >
-            <FolderPlus className="w-4 h-4 text-gray-600" />
+            <FolderPlus className="w-4 h-4 text-gray-600 dark:text-gray-400 dark:text-gray-500" />
           </button>
           <button
             onClick={onToggleCollapse}
-            className="p-1.5 hover:bg-gray-100 rounded-md"
+            className="p-1.5 hover:bg-gray-100 dark:bg-gray-700 rounded-md"
             title="Collapse sidebar"
           >
-            <ChevronLeft className="w-4 h-4 text-gray-600" />
+            <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400 dark:text-gray-500" />
           </button>
         </div>
       </div>
 
       {/* New Folder Input */}
       {showNewFolderInput && (
-        <div className="p-2 border-b border-gray-200">
+        <div className="p-2 border-b border-gray-200 dark:border-gray-700">
           <form onSubmit={handleCreateFolder} className="flex space-x-1">
             <input
               type="text"
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
               placeholder="Folder name"
-              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
             />
             <button
               type="submit"
-              className="px-2 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+              className="px-2 py-1 text-sm bg-blue-600 dark:bg-blue-500 text-white rounded hover:bg-blue-700"
             >
               Add
             </button>
@@ -140,7 +140,7 @@ export function FolderSidebar({
                 setShowNewFolderInput(false);
                 setNewFolderName('');
               }}
-              className="px-2 py-1 text-sm text-gray-600 hover:text-gray-900"
+              className="px-2 py-1 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:text-white"
             >
               Cancel
             </button>
@@ -156,19 +156,19 @@ export function FolderSidebar({
             onSelectFolder(null);
             onSelectTag(null);
           }}
-          className={`w-full px-4 py-2.5 flex items-center space-x-3 hover:bg-gray-50 ${
+          className={`w-full px-4 py-2.5 flex items-center space-x-3 hover:bg-gray-50 dark:bg-gray-700 ${
             selectedFolderId === null && selectedTagId === null ? 'bg-blue-50 border-l-4 border-blue-600' : ''
           }`}
         >
-          <Folder className="w-5 h-5 text-gray-400" />
-          <span className="text-sm font-medium text-gray-700">All Notes</span>
+          <Folder className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-200">All Notes</span>
         </button>
 
         {/* Folder Items */}
         {isLoading ? (
-          <div className="px-4 py-8 text-center text-sm text-gray-500">Loading...</div>
+          <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Loading...</div>
         ) : folders.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-gray-500">
+          <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
             No folders yet. Create one to get started!
           </div>
         ) : (
@@ -176,40 +176,40 @@ export function FolderSidebar({
             <button
               key={folder.id}
               onClick={() => onSelectFolder(folder.id)}
-              className={`w-full px-4 py-2.5 flex items-center justify-between hover:bg-gray-50 ${
+              className={`w-full px-4 py-2.5 flex items-center justify-between hover:bg-gray-50 dark:bg-gray-700 ${
                 selectedFolderId === folder.id ? 'bg-blue-50 border-l-4 border-blue-600' : ''
               }`}
             >
               <div className="flex items-center space-x-3">
-                <Folder className="w-5 h-5 text-gray-400" />
-                <span className="text-sm font-medium text-gray-700">{folder.name}</span>
+                <Folder className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{folder.name}</span>
               </div>
-              <span className="text-xs text-gray-500">{folder.noteCount}</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">{folder.noteCount}</span>
             </button>
           ))
         )}
 
         {/* Tags Section */}
-        <div className="mt-4 border-t border-gray-200">
+        <div className="mt-4 border-t border-gray-200 dark:border-gray-700">
           <button
             onClick={() => setTagsExpanded(!tagsExpanded)}
-            className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-gray-50"
+            className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-gray-50 dark:bg-gray-700"
           >
             <div className="flex items-center space-x-3">
-              <Tag className="w-5 h-5 text-gray-400" />
-              <span className="text-sm font-medium text-gray-700">Tags</span>
+              <Tag className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Tags</span>
             </div>
             {tagsExpanded ? (
-              <ChevronUp className="w-4 h-4 text-gray-400" />
+              <ChevronUp className="w-4 h-4 text-gray-400 dark:text-gray-500" />
             ) : (
-              <ChevronDown className="w-4 h-4 text-gray-400" />
+              <ChevronDown className="w-4 h-4 text-gray-400 dark:text-gray-500" />
             )}
           </button>
 
           {tagsExpanded && (
             <div>
               {tags.length === 0 ? (
-                <div className="px-4 py-4 text-center text-sm text-gray-500">
+                <div className="px-4 py-4 text-center text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                   No tags yet. Add tags to your notes!
                 </div>
               ) : (
@@ -217,12 +217,12 @@ export function FolderSidebar({
                   <button
                     key={tag.id}
                     onClick={() => onSelectTag(tag.id)}
-                    className={`w-full px-4 py-2 pl-12 flex items-center justify-between hover:bg-gray-50 text-left ${
+                    className={`w-full px-4 py-2 pl-12 flex items-center justify-between hover:bg-gray-50 dark:bg-gray-700 text-left ${
                       selectedTagId === tag.id ? 'bg-blue-50 border-l-4 border-blue-600' : ''
                     }`}
                   >
-                    <span className="text-sm text-gray-700">{tag.name}</span>
-                    <span className="text-xs text-gray-500">{tag.noteCount}</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-200">{tag.name}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">{tag.noteCount}</span>
                   </button>
                 ))
               )}
