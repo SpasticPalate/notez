@@ -64,19 +64,21 @@ model Folder {
 
 // Notes
 model Note {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  folderId  String?  @map("folder_id")
-  title     String   @db.VarChar(500)
-  content   String?  @db.Text
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id           String                    @id @default(uuid())
+  userId       String                    @map("user_id")
+  folderId     String?                   @map("folder_id")
+  title        String                    @db.VarChar(500)
+  content      String?                   @db.Text
+  searchVector Unsupported("tsvector")?  @map("search_vector")
+  createdAt    DateTime                  @default(now()) @map("created_at")
+  updatedAt    DateTime                  @updatedAt @map("updated_at")
 
   // Relations
   user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   folder Folder?   @relation(fields: [folderId], references: [id], onDelete: SetNull)
   tags   NoteTag[]
 
+  @@index([searchVector], type: Gin)
   @@map("notes")
 }
 
