@@ -141,7 +141,7 @@ export class OpenAIProvider implements AIProvider {
         ],
       });
 
-      return response.choices[0]?.message?.content !== undefined;
+      return response.choices[0]?.message?.content?.trim() === 'OK';
     } catch (error: any) {
       this.handleError(error, 'testConnection');
       return false;

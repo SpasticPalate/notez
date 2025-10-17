@@ -125,7 +125,7 @@ export class AnthropicProvider implements AIProvider {
       });
 
       const textBlock = response.content.find((block) => block.type === 'text');
-      return textBlock !== undefined && textBlock.type === 'text';
+      return textBlock?.type === 'text' && textBlock.text.trim() === 'OK';
     } catch (error: any) {
       this.handleError(error, 'testConnection');
       return false;

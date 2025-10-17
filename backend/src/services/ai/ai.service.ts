@@ -19,32 +19,23 @@ import { decrypt, encrypt } from '../../utils/encryption';
  * Manages per-user AI provider configuration and provides unified interface for AI operations
  */
 export class AIService {
-  private providerCache: Map<string, AIProvider> = new Map();
-  private configCache: Map<string, AIProviderConfig> = new Map();
-
   /**
    * Get the AI provider for a specific user
    * @param userId User ID
    * @throws AIProviderNotConfiguredError if user has not configured AI
+   *
+   * Note: We do NOT cache providers/configs to avoid keeping decrypted API keys in memory.
+   * Each request fetches and decrypts the key on-demand, then discards it.
    */
   private async getProviderForUser(userId: string): Promise<AIProvider> {
-    // Check if we have a cached provider for this user
-    if (this.providerCache.has(userId) && this.configCache.has(userId)) {
-      return this.providerCache.get(userId)!;
-    }
-
-    // Load configuration from database
+    // Load configuration from database (decrypts on-demand)
     const config = await this.getUserConfiguration(userId);
     if (!config) {
       throw new AIProviderNotConfiguredError();
     }
 
-    // Create provider instance
+    // Create provider instance (key is used and then discarded)
     const provider = this.createProvider(config);
-
-    // Cache the provider and config
-    this.providerCache.set(userId, provider);
-    this.configCache.set(userId, config);
 
     return provider;
   }
@@ -96,10 +87,6 @@ export class AIService {
         model: config.model || null,
       },
     });
-
-    // Clear cache for this user so next request will use new configuration
-    this.providerCache.delete(userId);
-    this.configCache.delete(userId);
   }
 
   /**
@@ -110,10 +97,6 @@ export class AIService {
     await prisma.userAISettings.delete({
       where: { userId },
     });
-
-    // Clear cache
-    this.providerCache.delete(userId);
-    this.configCache.delete(userId);
   }
 
   /**
@@ -172,19 +155,6 @@ export class AIService {
     }
   }
 
-  /**
-   * Clear cached provider for a user (useful for testing)
-   * @param userId User ID (optional - if not provided, clears all)
-   */
-  clearCache(userId?: string): void {
-    if (userId) {
-      this.providerCache.delete(userId);
-      this.configCache.delete(userId);
-    } else {
-      this.providerCache.clear();
-      this.configCache.clear();
-    }
-  }
 }
 
 // Export singleton instance

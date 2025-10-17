@@ -133,7 +133,7 @@ export function NoteEditor({ noteId, onNoteDeleted }: NoteEditorProps) {
 
   const handleAISummarize = async () => {
     if (!content.trim()) {
-      alert('Please add some content to summarize');
+      setAiError('Please add some content to summarize');
       return;
     }
 
@@ -150,7 +150,6 @@ export function NoteEditor({ noteId, onNoteDeleted }: NoteEditorProps) {
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || 'Failed to generate summary';
       setAiError(errorMsg);
-      alert(errorMsg);
     } finally {
       setAiLoading(null);
     }
@@ -158,7 +157,7 @@ export function NoteEditor({ noteId, onNoteDeleted }: NoteEditorProps) {
 
   const handleAISuggestTitle = async () => {
     if (!content.trim()) {
-      alert('Please add some content to generate a title');
+      setAiError('Please add some content to generate a title');
       return;
     }
 
@@ -180,7 +179,6 @@ export function NoteEditor({ noteId, onNoteDeleted }: NoteEditorProps) {
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || 'Failed to suggest title';
       setAiError(errorMsg);
-      alert(errorMsg);
     } finally {
       setAiLoading(null);
     }
@@ -188,7 +186,7 @@ export function NoteEditor({ noteId, onNoteDeleted }: NoteEditorProps) {
 
   const handleAISuggestTags = async () => {
     if (!content.trim()) {
-      alert('Please add some content to suggest tags');
+      setAiError('Please add some content to suggest tags');
       return;
     }
 
@@ -208,12 +206,11 @@ export function NoteEditor({ noteId, onNoteDeleted }: NoteEditorProps) {
       if (newTagObjects.length > 0) {
         setTags([...tags, ...newTagObjects]);
       } else {
-        alert('All suggested tags are already added');
+        setAiError('All suggested tags are already added');
       }
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || 'Failed to suggest tags';
       setAiError(errorMsg);
-      alert(errorMsg);
     } finally {
       setAiLoading(null);
     }

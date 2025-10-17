@@ -74,7 +74,7 @@ export class AIServiceError extends Error {
 
 export class AIProviderNotConfiguredError extends Error {
   constructor() {
-    super('AI provider is not configured. Please configure AI settings in the admin panel.');
+    super('AI provider is not configured. Please configure your AI settings to use AI features.');
     this.name = 'AIProviderNotConfiguredError';
   }
 }
