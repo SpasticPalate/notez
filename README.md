@@ -1,403 +1,238 @@
-# Notez
+# Notez 📝
 
-A self-hosted, web-based note-taking application with AI-powered features. Combines the best of Notepad++ and Obsidian in a modern web interface.
+A modern, self-hosted note-taking application with AI-powered features.
 
-## Features (MVP)
+## Features
 
-- **User Management** - Admin-controlled user accounts with secure authentication
-- **Note Management** - Create, edit, and organize notes with auto-save
-- **Folders & Tags** - Organize notes with folders and tags
-- **Full-Text Search** - Fast search across all notes
-- **Monaco Editor** - Professional code editing experience with syntax highlighting
-- **AI Features** - Summarize notes, suggest titles and tags (Anthropic, OpenAI, Google Gemini)
-- **Dark Mode** - Modern, responsive UI with dark/light themes
+✅ **Complete MVP Implementation**
 
-## Tech Stack
+- 🔐 **Authentication** - Secure JWT-based auth with first-boot admin setup
+- 📝 **Note Management** - Create, edit, delete notes with Monaco editor
+- 📁 **Organization** - Folders and tags for organizing notes
+- 🔍 **Full-Text Search** - Fast PostgreSQL-powered search with snippets
+- 🤖 **AI Integration** - Summarize notes, suggest titles, extract tags (Claude, GPT, Gemini)
+- 🎨 **Dark Mode** - Beautiful light/dark theme with system preference detection
+- 👥 **User Management** - Admin panel for managing users
+- 🐳 **Docker Ready** - Single-command deployment with Docker Compose
 
-- **Backend:** Node.js 20, Fastify, TypeScript, Prisma
-- **Database:** PostgreSQL 16
-- **Frontend:** React 18, TypeScript, Vite, Monaco Editor
-- **Deployment:** Docker, GitHub Actions → ghcr.io
+## Quick Start
 
-## Prerequisites
-
-- Docker and Docker Compose
-- Node.js 20+ (for local development)
-- Git
-
-## Quick Start (Local Development)
-
-### 1. Clone the repository
+### Using Docker Compose (Recommended)
 
 ```bash
+# Clone the repository
 git clone https://github.com/yourusername/notez.git
 cd notez
+
+# Copy environment template
+cp .env.example .env
+
+# Edit .env and set secure secrets (see DEPLOYMENT.md)
+nano .env
+
+# Start the application
+docker-compose up -d
+
+# Access Notez
+open http://localhost:3000
 ```
 
-### 2. Set up environment variables
+The first time you access Notez, you'll create an admin account through the setup wizard.
+
+### Manual Development Setup
+
+**Prerequisites:**
+- Node.js 20+
+- PostgreSQL 16+
 
 **Backend:**
 ```bash
 cd backend
+npm install
 cp .env.example .env
-# Edit .env with your values (defaults work for local dev)
+# Edit .env with your database credentials
+npx prisma migrate dev
+npm run dev
 ```
 
 **Frontend:**
 ```bash
 cd frontend
-cp .env.example .env
-# Edit .env if needed (defaults work for local dev)
+npm install
+npm run dev
 ```
 
-### 3. Start with Docker Compose
+## Deployment
 
-```bash
-# From the root directory
-docker compose up -d
-```
+See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for complete deployment instructions including:
 
-This will start:
-- PostgreSQL database on port 5432
-- Backend API on port 3000
-- Frontend on port 5173
+- 🐳 Docker Compose deployment
+- 🚢 Portainer setup
+- 🔄 GitHub Actions CI/CD
+- 📦 Updating and maintenance
+- 💾 Backup and restore
+- 🔧 Troubleshooting
 
-### 4. Run database migrations
+**TL;DR for Portainer:**
 
-```bash
-# The backend container automatically runs migrations on startup
-# To run manually:
-docker compose exec backend npx prisma migrate deploy
-```
+1. Pull from GitHub Container Registry: `ghcr.io/yourusername/notez:latest`
+2. Create stack with docker-compose.yml
+3. Set environment variables
+4. Deploy!
 
-### 5. Access the application
-
-Open your browser to [http://localhost:5173](http://localhost:5173)
-
-On first visit, you'll be prompted to create an admin account.
-
-## Local Development (Without Docker)
+## Technology Stack
 
 ### Backend
-
-```bash
-cd backend
-
-# Install dependencies
-npm install
-
-# Set up environment
-cp .env.example .env
-
-# Start PostgreSQL (or use Docker)
-docker run -d \
-  --name notez-postgres \
-  -e POSTGRES_USER=notez \
-  -e POSTGRES_PASSWORD=notez \
-  -e POSTGRES_DB=notez \
-  -p 5432:5432 \
-  postgres:16-alpine
-
-# Generate Prisma Client
-npm run prisma:generate
-
-# Run migrations
-npm run prisma:migrate
-
-# Start dev server (with hot reload)
-npm run dev
-```
-
-Backend will be available at [http://localhost:3000](http://localhost:3000)
+- **Runtime:** Node.js 20 LTS
+- **Framework:** Fastify
+- **Language:** TypeScript
+- **Database:** PostgreSQL 16
+- **ORM:** Prisma
+- **Authentication:** JWT
 
 ### Frontend
+- **Framework:** React 18
+- **Build Tool:** Vite
+- **Language:** TypeScript
+- **Editor:** Monaco Editor
+- **Styling:** Tailwind CSS
+- **Routing:** React Router v6
 
-```bash
-cd frontend
+### AI Providers
+- Anthropic Claude (Sonnet, Opus)
+- OpenAI (GPT-4, GPT-3.5)
+- Google Gemini
 
-# Install dependencies
-npm install
+## Features in Detail
 
-# Set up environment
-cp .env.example .env
+### Note Management
+- Rich text editing with Monaco editor (VS Code's editor)
+- Auto-save every 2 seconds
+- Manual save with visual feedback
+- Full markdown support
+- Syntax highlighting for code blocks
 
-# Start dev server (with hot reload)
-npm run dev
-```
+### Organization
+- Create unlimited folders
+- Assign notes to folders
+- Multi-tag support per note
+- "All Notes" and "Unfiled" views
+- Tag-based filtering
 
-Frontend will be available at [http://localhost:5173](http://localhost:5173)
+### Search
+- Full-text search across title and content
+- PostgreSQL tsvector for fast queries
+- Search result snippets with highlighting
+- Relevance-based ranking
+- Real-time search with debouncing
 
-## Production Deployment
+### AI Features
+- **Summarize Note** - Generate concise summaries
+- **Suggest Title** - AI-powered title recommendations
+- **Extract Tags** - Automatic tag suggestions from content
+- Per-user API key configuration
+- Supports multiple AI providers
 
-### 1. Configure GitHub Container Registry
+### Security
+- JWT-based authentication
+- Secure password hashing (bcrypt)
+- Encrypted AI API key storage (AES-256-GCM)
+- CSRF protection
+- HTTP-only refresh tokens
+- Rate limiting ready
 
-The project uses GitHub Actions to build and push Docker images to ghcr.io.
+### Admin Features
+- User management (create, list, deactivate)
+- Force password change on first login
+- Role-based access control
+- System health monitoring
 
-**Set up GitHub secrets:**
-- `GHCR_TOKEN` - GitHub Personal Access Token with `write:packages` permission
+## Environment Variables
 
-### 2. Update compose.prod.yml
+See `.env.example` for all available configuration options.
 
-Edit the image names:
-```yaml
-backend:
-  image: ghcr.io/YOUR_USERNAME/notez-backend:latest
-
-frontend:
-  image: ghcr.io/YOUR_USERNAME/notez-frontend:latest
-```
-
-### 3. Create production environment file
-
-```bash
-# Create .env.prod
-cp backend/.env.example .env.prod
-```
-
-Edit `.env.prod` with secure values:
-```bash
-POSTGRES_PASSWORD=<strong-random-password>
-JWT_ACCESS_SECRET=<random-64-char-string>
-JWT_REFRESH_SECRET=<random-64-char-string>
-ENCRYPTION_KEY=<random-32-char-string>
-CORS_ORIGIN=https://notez.curgghoth.com
-```
-
-### 4. Deploy to your server
-
-```bash
-# On your server
-git clone https://github.com/yourusername/notez.git
-cd notez
-
-# Copy your production env file
-cp .env.prod .env
-
-# Start services
-docker compose -f compose.prod.yml up -d
-```
-
-### 5. Configure Cloudflare Tunnel
-
-Set up a Cloudflare Tunnel pointing to:
-- `http://notez-frontend:80` for the web interface
-- Optionally `http://notez-backend:3000` for direct API access
-
-## CI/CD Pipeline
-
-The project uses GitHub Actions for automated builds and deployments.
-
-**Workflow:** `.github/workflows/deploy.yml`
-
-**On push to `main`:**
-1. Run tests
-2. Build Docker images
-3. Push to ghcr.io
-4. (Optional) Trigger Portainer webhook
-
-## Project Structure
-
-```
-notez/
-├── backend/              # Fastify API server
-│   ├── src/
-│   │   ├── index.ts     # Entry point
-│   │   ├── routes/      # API routes
-│   │   ├── services/    # Business logic
-│   │   ├── utils/       # Utilities
-│   │   └── types/       # TypeScript types
-│   ├── prisma/
-│   │   └── schema.prisma # Database schema
-│   ├── Dockerfile
-│   └── package.json
-├── frontend/            # React web app
-│   ├── src/
-│   │   ├── components/  # React components
-│   │   ├── pages/       # Page components
-│   │   ├── hooks/       # Custom hooks
-│   │   ├── stores/      # Zustand stores
-│   │   ├── lib/         # API client, utilities
-│   │   └── main.tsx     # Entry point
-│   ├── Dockerfile
-│   ├── Dockerfile.dev
-│   └── package.json
-├── docker/              # Additional Docker configs
-├── docs/                # Documentation
-│   ├── requirements.md
-│   └── mvp-specification.md
-├── .github/
-│   └── workflows/       # GitHub Actions
-├── compose.yml       # Development
-├── compose.prod.yml  # Production
-└── README.md
-```
-
-## API Documentation
-
-### Health Check
-```
-GET /health
-```
-
-Returns server and database status.
-
-### Authentication
-```
-POST /api/auth/setup     # Initial admin setup
-POST /api/auth/login     # User login
-POST /api/auth/refresh   # Refresh access token
-POST /api/auth/logout    # Logout
-```
-
-### Notes (Authenticated)
-```
-GET    /api/notes        # List notes
-GET    /api/notes/:id    # Get note
-POST   /api/notes        # Create note
-PATCH  /api/notes/:id    # Update note
-DELETE /api/notes/:id    # Delete note
-```
-
-Full API documentation coming soon.
-
-## Database Schema
-
-See [backend/prisma/schema.prisma](backend/prisma/schema.prisma) for the complete schema.
-
-**Main tables:**
-- `users` - User accounts
-- `sessions` - Authentication sessions
-- `notes` - Note content and metadata
-- `folders` - Organization folders
-- `tags` - Note tags
-- `note_tags` - Note-tag relationships
-- `system_settings` - Application configuration
-
-## Configuration
-
-### Environment Variables
-
-**Backend:**
-- `NODE_ENV` - Environment (development/production)
-- `PORT` - Server port (default: 3000)
+**Required:**
 - `DATABASE_URL` - PostgreSQL connection string
 - `JWT_ACCESS_SECRET` - JWT access token secret
 - `JWT_REFRESH_SECRET` - JWT refresh token secret
-- `ENCRYPTION_KEY` - Encryption key for sensitive data
+- `COOKIE_SECRET` - Cookie signing secret
+- `ENCRYPTION_KEY` - AI API key encryption key
+
+**Optional:**
+- `PORT` - Server port (default: 3000)
 - `CORS_ORIGIN` - Allowed CORS origin
-
-**Frontend:**
-- `VITE_API_URL` - Backend API URL
-
-### AI Provider Configuration
-
-AI providers are configured through the admin panel after deployment. You can also set them via environment variables:
-- `ANTHROPIC_API_KEY`
-- `OPENAI_API_KEY`
-- `GEMINI_API_KEY`
+- `LOG_LEVEL` - Logging level (default: info)
 
 ## Development
 
-### Running Tests
+### Project Structure
 
-```bash
-# Backend
-cd backend
-npm test
-
-# Frontend
-cd frontend
-npm test
+```
+notez/
+├── backend/           # Fastify backend
+│   ├── src/
+│   │   ├── routes/    # API endpoints
+│   │   ├── services/  # Business logic
+│   │   ├── middleware/# Auth, validation
+│   │   └── lib/       # Utilities
+│   └── prisma/        # Database schema & migrations
+├── frontend/          # React frontend
+│   ├── src/
+│   │   ├── components/# UI components
+│   │   ├── pages/     # Page components
+│   │   ├── contexts/  # React contexts
+│   │   └── lib/       # API client, utilities
+├── docs/              # Documentation
+├── .github/           # GitHub Actions workflows
+└── docker-compose.yml # Docker Compose config
 ```
 
-### Database Management
+### Database Migrations
 
 ```bash
 # Create a new migration
 cd backend
-npm run prisma:migrate
+npx prisma migrate dev --name migration_name
 
-# Open Prisma Studio (database GUI)
-npm run prisma:studio
+# Apply migrations
+npx prisma migrate deploy
 
-# Reset database (WARNING: deletes all data)
+# Reset database (⚠️ DESTROYS DATA)
 npx prisma migrate reset
 ```
 
-### Code Formatting
+### Building for Production
 
 ```bash
-# Lint
-npm run lint
+# Backend
+cd backend
+npm run build
 
-# Format (if configured)
-npm run format
-```
-
-## Troubleshooting
-
-### Database connection issues
-
-Check that PostgreSQL is running:
-```bash
-docker compose ps postgres
-```
-
-View logs:
-```bash
-docker compose logs postgres
-```
-
-### Backend won't start
-
-Check logs:
-```bash
-docker compose logs backend
-```
-
-Ensure migrations have run:
-```bash
-docker compose exec backend npx prisma migrate deploy
-```
-
-### Frontend build issues
-
-Clear node_modules and reinstall:
-```bash
+# Frontend
 cd frontend
-rm -rf node_modules package-lock.json
-npm install
+npm run build
 ```
 
 ## Contributing
 
-This is a personal project, but contributions are welcome!
+This is a personal project, but suggestions and bug reports are welcome!
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+3. Commit your changes
+4. Push to the branch
 5. Open a Pull Request
 
 ## License
 
-MIT License - See LICENSE file for details
+This project is open source and available under the MIT License.
 
-## Roadmap
+## Acknowledgments
 
-See [docs/requirements.md](docs/requirements.md) for the full feature roadmap.
-
-**Coming in Phase 2:**
-- Note linking with [[syntax]]
-- Graph visualization
-- Version history
-- Multi-tab editor
-- Auto-indexing and semantic search
-
-## Support
-
-For issues and questions, please open a GitHub issue.
+- Built with [Claude Code](https://claude.com/claude-code) assistance
+- Icons by [Lucide](https://lucide.dev)
+- Editor powered by [Monaco Editor](https://microsoft.github.io/monaco-editor/)
 
 ---
 
-Built with ❤️ using Fastify, React, and Claude AI
+**Made with ❤️ for better note-taking**
