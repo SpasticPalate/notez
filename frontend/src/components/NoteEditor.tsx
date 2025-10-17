@@ -218,11 +218,11 @@ export function NoteEditor({ noteId, onNoteDeleted }: NoteEditorProps) {
 
   if (!noteId) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-50">
+      <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-700">
         <div className="text-center">
           <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No note selected</h3>
-          <p className="text-gray-500">Select a note or create a new one to get started</p>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No note selected</h3>
+          <p className="text-gray-500 dark:text-gray-400 dark:text-gray-500">Select a note or create a new one to get started</p>
         </div>
       </div>
     );
@@ -230,37 +230,37 @@ export function NoteEditor({ noteId, onNoteDeleted }: NoteEditorProps) {
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-50">
-        <div className="text-gray-500">Loading note...</div>
+      <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-700">
+        <div className="text-gray-500 dark:text-gray-400 dark:text-gray-500">Loading note...</div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-white">
+    <div className="flex-1 flex flex-col bg-white dark:bg-gray-800">
       {/* Editor Header */}
-      <div className="px-6 py-4 border-b border-gray-200 space-y-3">
+      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 space-y-3">
         <div className="flex items-center justify-between">
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="flex-1 text-2xl font-bold text-gray-900 focus:outline-none"
+            className="flex-1 text-2xl font-bold text-gray-900 dark:text-white focus:outline-none"
             placeholder="Untitled Note"
           />
           <div className="flex items-center space-x-3 ml-4">
             {/* Save Status */}
             <div className="flex items-center space-x-2">
               {isSaving ? (
-                <span className="text-sm text-gray-500">Saving...</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Saving...</span>
               ) : lastSaved ? (
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                   Saved {formatSaveTime(lastSaved)}
                 </span>
               ) : null}
               <button
                 onClick={handleManualSave}
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md"
+                className="p-2 text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:bg-gray-700 rounded-md"
                 title="Save now (Ctrl+S)"
               >
                 <Save className="w-4 h-4" />
@@ -294,7 +294,7 @@ export function NoteEditor({ noteId, onNoteDeleted }: NoteEditorProps) {
         {/* AI Actions */}
         <div className="flex items-center space-x-2 pt-2">
           <Sparkles className="w-4 h-4 text-purple-600" />
-          <span className="text-sm font-medium text-gray-700">AI Actions:</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-200">AI Actions:</span>
 
           <button
             onClick={handleAISummarize}

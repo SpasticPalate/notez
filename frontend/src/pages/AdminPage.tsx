@@ -115,24 +115,24 @@ export function AdminPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-700">
       {/* Header */}
-      <nav className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+      <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <button
             onClick={() => navigate('/')}
-            className="p-2 hover:bg-gray-100 rounded-md flex items-center space-x-2 text-gray-700"
+            className="p-2 hover:bg-gray-100 dark:bg-gray-900 rounded-md flex items-center space-x-2 text-gray-700 dark:text-gray-200"
           >
             <ArrowLeft className="w-5 h-5" />
             <span>Back to Notes</span>
           </button>
-          <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Admin Panel</h1>
         </div>
         <div className="flex items-center space-x-4">
-          <span className="text-sm text-gray-600">{user?.username}</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">{user?.username}</span>
           <button
             onClick={logout}
-            className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50"
+            className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:bg-gray-700"
           >
             Logout
           </button>
@@ -141,16 +141,16 @@ export function AdminPage() {
 
       {/* Main Content */}
       <div className="max-w-6xl mx-auto py-8 px-4">
-        <div className="bg-white rounded-lg shadow">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
           {/* User Management Header */}
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <Users className="w-6 h-6 text-gray-600" />
-              <h2 className="text-lg font-semibold text-gray-900">User Management</h2>
+              <Users className="w-6 h-6 text-gray-600 dark:text-gray-400 dark:text-gray-500" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">User Management</h2>
             </div>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700"
             >
               <UserPlus className="w-4 h-4" />
               <span>Create User</span>
@@ -160,20 +160,20 @@ export function AdminPage() {
           {/* Users List */}
           <div className="divide-y divide-gray-200">
             {isLoading ? (
-              <div className="px-6 py-8 text-center text-gray-500">Loading users...</div>
+              <div className="px-6 py-8 text-center text-gray-500 dark:text-gray-400 dark:text-gray-500">Loading users...</div>
             ) : users.length === 0 ? (
-              <div className="px-6 py-8 text-center text-gray-500">No users found</div>
+              <div className="px-6 py-8 text-center text-gray-500 dark:text-gray-400 dark:text-gray-500">No users found</div>
             ) : (
               users.map((u) => (
-                <div key={u.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
+                <div key={u.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:bg-gray-700">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3">
-                      <h3 className="font-medium text-gray-900">{u.username}</h3>
+                      <h3 className="font-medium text-gray-900 dark:text-white">{u.username}</h3>
                       <span
                         className={`px-2 py-0.5 text-xs rounded-full ${
                           u.role === 'admin'
                             ? 'bg-purple-100 text-purple-800'
-                            : 'bg-gray-100 text-gray-800'
+                            : 'bg-gray-100 dark:bg-gray-900 text-gray-800'
                         }`}
                       >
                         {u.role}
@@ -186,8 +186,8 @@ export function AdminPage() {
                         {u.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">{u.email}</p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500 mt-1">{u.email}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">
                       Created: {new Date(u.createdAt).toLocaleDateString()}
                     </p>
                   </div>
@@ -195,7 +195,7 @@ export function AdminPage() {
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => setShowResetModal(u.id)}
-                      className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md"
+                      className="p-2 text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md"
                       title="Reset Password"
                     >
                       <Key className="w-4 h-4" />
@@ -205,8 +205,8 @@ export function AdminPage() {
                       onClick={() => handleToggleActive(u.id, u.isActive)}
                       className={`p-2 rounded-md ${
                         u.isActive
-                          ? 'text-gray-600 hover:text-orange-600 hover:bg-orange-50'
-                          : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
+                          ? 'text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:text-orange-600 hover:bg-orange-50'
+                          : 'text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:text-green-600 hover:bg-green-50'
                       }`}
                       title={u.isActive ? 'Deactivate' : 'Activate'}
                     >
@@ -223,8 +223,8 @@ export function AdminPage() {
       {/* Create User Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New User</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Create New User</h3>
 
             {createError && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800">
@@ -234,29 +234,29 @@ export function AdminPage() {
 
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Username</label>
                 <input
                   type="text"
                   required
                   value={newUsername}
                   onChange={(e) => setNewUsername(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email</label>
                 <input
                   type="email"
                   required
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                   Temporary Password
                 </label>
                 <input
@@ -264,20 +264,20 @@ export function AdminPage() {
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Min 8 chars, 1 uppercase, 1 number"
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
                   User will be required to change this on first login
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Role</label>
                 <select
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
@@ -287,7 +287,7 @@ export function AdminPage() {
               <div className="flex space-x-3 mt-6">
                 <button
                   type="submit"
-                  className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  className="flex-1 py-2 px-4 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700"
                 >
                   Create User
                 </button>
@@ -297,7 +297,7 @@ export function AdminPage() {
                     setShowCreateModal(false);
                     setCreateError('');
                   }}
-                  className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                  className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:bg-gray-700"
                 >
                   Cancel
                 </button>
@@ -310,8 +310,8 @@ export function AdminPage() {
       {/* Reset Password Modal */}
       {showResetModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Reset User Password</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Reset User Password</h3>
 
             {resetError && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800">
@@ -321,7 +321,7 @@ export function AdminPage() {
 
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                   New Temporary Password
                 </label>
                 <input
@@ -329,10 +329,10 @@ export function AdminPage() {
                   required
                   value={resetPassword}
                   onChange={(e) => setResetPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Min 8 chars, 1 uppercase, 1 number"
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
                   User will be required to change this on next login
                 </p>
               </div>
@@ -340,7 +340,7 @@ export function AdminPage() {
               <div className="flex space-x-3 mt-6">
                 <button
                   type="submit"
-                  className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  className="flex-1 py-2 px-4 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700"
                 >
                   Reset Password
                 </button>
@@ -351,7 +351,7 @@ export function AdminPage() {
                     setResetError('');
                     setResetPassword('');
                   }}
-                  className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                  className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:bg-gray-700"
                 >
                   Cancel
                 </button>

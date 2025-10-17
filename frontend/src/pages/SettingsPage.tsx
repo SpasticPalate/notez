@@ -8,18 +8,18 @@ export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'ai'>('ai');
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-700">
       {/* Navigation Bar */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
+      <nav className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <button
             onClick={() => navigate('/')}
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
+            className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:text-white"
           >
             <ArrowLeft className="w-5 h-5" />
             <span>Back to Notes</span>
           </button>
-          <h1 className="text-xl font-bold text-gray-900">Settings</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Settings</h1>
           <div className="w-28"></div> {/* Spacer for center alignment */}
         </div>
       </nav>
@@ -27,14 +27,14 @@ export function SettingsPage() {
       {/* Main Content */}
       <div className="max-w-4xl mx-auto py-8 px-4">
         {/* Tabs */}
-        <div className="bg-white rounded-t-lg shadow border-b border-gray-200">
+        <div className="bg-white dark:bg-gray-800 rounded-t-lg shadow border-b border-gray-200 dark:border-gray-700">
           <div className="flex space-x-1 px-6">
             <button
               onClick={() => setActiveTab('ai')}
               className={`flex items-center space-x-2 px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
                 activeTab === 'ai'
                   ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:text-white hover:border-gray-300 dark:border-gray-600'
               }`}
             >
               <Bot className="w-4 h-4" />
@@ -45,7 +45,7 @@ export function SettingsPage() {
               className={`flex items-center space-x-2 px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
                 activeTab === 'profile'
                   ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:text-white hover:border-gray-300 dark:border-gray-600'
               }`}
             >
               <User className="w-4 h-4" />
@@ -54,12 +54,12 @@ export function SettingsPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-b-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-b-lg shadow p-6">
           {activeTab === 'ai' ? (
             <AISettings />
           ) : (
-            <div className="py-12 text-center text-gray-500">
-              <User className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+            <div className="py-12 text-center text-gray-500 dark:text-gray-400 dark:text-gray-500">
+              <User className="w-12 h-12 mx-auto mb-4 text-gray-400 dark:text-gray-500" />
               <p>Profile settings coming soon</p>
             </div>
           )}
