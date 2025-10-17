@@ -90,17 +90,51 @@ docker build -t notez:latest .
 
 ### Run Production Container
 
+**⚠️ SECURITY WARNING:** Never pass secrets directly on the command line, as they will be visible in shell history and process listings.
+
+**Recommended: Use environment file:**
+
 ```bash
+# Create a secure .env file
+cat > notez.env <<EOF
+DATABASE_URL=postgresql://user:pass@host:5432/notez
+JWT_ACCESS_SECRET=your-secure-secret
+JWT_REFRESH_SECRET=your-secure-secret
+COOKIE_SECRET=your-secure-secret
+ENCRYPTION_KEY=your-secure-encryption-key-32-chars
+CORS_ORIGIN=https://your-domain.com
+EOF
+
+# Set restrictive permissions
+chmod 600 notez.env
+
+# Run container with env file
 docker run -d \
   --name notez \
   -p 3000:3000 \
-  -e DATABASE_URL="postgresql://user:pass@host:5432/notez" \
-  -e JWT_ACCESS_SECRET="your-secure-secret" \
-  -e JWT_REFRESH_SECRET="your-secure-secret" \
-  -e COOKIE_SECRET="your-secure-secret" \
-  -e ENCRYPTION_KEY="your-secure-encryption-key-32-chars" \
-  -e CORS_ORIGIN="https://your-domain.com" \
+  --env-file notez.env \
   --restart unless-stopped \
+  ghcr.io/yourusername/notez:latest
+```
+
+**Alternative: Use Docker secrets (Swarm mode):**
+
+```bash
+# Create secrets
+echo "your-jwt-access-secret" | docker secret create jwt_access_secret -
+echo "your-jwt-refresh-secret" | docker secret create jwt_refresh_secret -
+echo "your-cookie-secret" | docker secret create cookie_secret -
+echo "your-encryption-key" | docker secret create encryption_key -
+
+# Run with secrets
+docker service create \
+  --name notez \
+  -p 3000:3000 \
+  --secret jwt_access_secret \
+  --secret jwt_refresh_secret \
+  --secret cookie_secret \
+  --secret encryption_key \
+  --restart-condition any \
   ghcr.io/yourusername/notez:latest
 ```
 
@@ -219,8 +253,15 @@ npx prisma migrate deploy
 If you need to run migrations before starting:
 
 ```bash
+# Using env file (recommended)
 docker run --rm \
-  -e DATABASE_URL="your-database-url" \
+  --env-file notez.env \
+  ghcr.io/yourusername/notez:latest \
+  sh -c "cd backend && npx prisma migrate deploy"
+
+# Or set DATABASE_URL from file
+docker run --rm \
+  -e DATABASE_URL="$(cat database-url.txt)" \
   ghcr.io/yourusername/notez:latest \
   sh -c "cd backend && npx prisma migrate deploy"
 ```

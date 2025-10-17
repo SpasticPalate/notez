@@ -38,8 +38,8 @@ RUN npx prisma generate
 # Build backend TypeScript
 RUN npm run build
 
-# Remove devDependencies
-RUN npm prune --production
+# Note: NOT pruning devDependencies because we need prisma CLI for migrations
+# The prisma package is required for running "npx prisma migrate deploy" in production
 
 # Stage 3: Production Image
 FROM node:20-alpine
@@ -64,6 +64,10 @@ COPY --from=backend-builder --chown=notez:notez /app/backend/prisma ./backend/pr
 # Copy frontend build
 COPY --from=frontend-builder --chown=notez:notez /app/frontend/dist ./frontend/dist
 
+# Copy entrypoint script
+COPY --chown=notez:notez docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
@@ -79,8 +83,8 @@ USER notez
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Use dumb-init to handle signals properly
-ENTRYPOINT ["dumb-init", "--"]
+# Use entrypoint script to run migrations before starting app
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # Start the application
 CMD ["node", "backend/dist/index.js"]
