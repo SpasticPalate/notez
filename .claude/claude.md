@@ -4,10 +4,24 @@
 
 **CRITICAL: You are FORBIDDEN from committing directly to the `main` branch.**
 
+### Automated Enforcement
+
+A pre-commit git hook prevents accidental commits to main:
+- Location: `.git/hooks/pre-commit` (active)
+- Source: `.githooks/pre-commit` (committed to repo)
+- Blocks any commit attempt on main branch
+- Provides clear error message with instructions
+
+If hook is missing, install it:
+```bash
+git config core.hooksPath .githooks
+```
+
 ### Branch Strategy
 
 1. **ALWAYS check your current branch before committing code**
-   - Run `git branch --show-current` before any commit
+   - The pre-commit hook will block commits to main automatically
+   - Still verify with: `git branch --show-current`
    - If you are on `main`, you MUST switch to a feature branch or create a new one
 
 2. **Feature Branch Naming Convention**
