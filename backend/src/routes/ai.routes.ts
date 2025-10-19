@@ -1,11 +1,11 @@
 import { FastifyInstance } from 'fastify';
-import { aiService } from '../services/ai';
+import { aiService } from '../services/ai/index.js';
 import {
   AIProviderNotConfiguredError,
   AIProviderConnectionError,
   AIProviderRateLimitError,
   AIServiceError,
-} from '../services/ai/types';
+} from '../services/ai/types.js';
 import {
   aiConfigSchema,
   aiSummarizeSchema,
