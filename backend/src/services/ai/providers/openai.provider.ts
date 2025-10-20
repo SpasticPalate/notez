@@ -7,7 +7,7 @@ import {
   AIProviderConnectionError,
   AIProviderRateLimitError,
   AIServiceError,
-} from '../types';
+} from '../types.js';
 
 export class OpenAIProvider implements AIProvider {
   private client: OpenAI;

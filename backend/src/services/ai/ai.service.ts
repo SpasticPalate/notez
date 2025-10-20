@@ -1,4 +1,4 @@
-import { prisma } from '../../lib/db';
+import { prisma } from '../../lib/db.js';
 import {
   AIProvider,
   AIProviderType,
@@ -7,11 +7,11 @@ import {
   AISummarizeOptions,
   AISuggestTitleOptions,
   AISuggestTagsOptions,
-} from './types';
-import { AnthropicProvider } from './providers/anthropic.provider';
-import { OpenAIProvider } from './providers/openai.provider';
-import { GeminiProvider } from './providers/gemini.provider';
-import { decrypt, encrypt } from '../../utils/encryption';
+} from './types.js';
+import { AnthropicProvider } from './providers/anthropic.provider.js';
+import { OpenAIProvider } from './providers/openai.provider.js';
+import { GeminiProvider } from './providers/gemini.provider.js';
+import { decrypt, encrypt } from '../../utils/encryption.js';
 
 /**
  * AI Service

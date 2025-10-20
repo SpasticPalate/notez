@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { authenticateToken } from '../middleware/auth.middleware';
-import { searchService } from '../services/search.service';
+import { authenticateToken } from '../middleware/auth.middleware.js';
+import { searchService } from '../services/search.service.js';
 
 // Validation schema
 const searchQuerySchema = z.object({

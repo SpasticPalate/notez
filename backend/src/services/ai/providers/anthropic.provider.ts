@@ -7,7 +7,7 @@ import {
   AIProviderConnectionError,
   AIProviderRateLimitError,
   AIServiceError,
-} from '../types';
+} from '../types.js';
 
 export class AnthropicProvider implements AIProvider {
   private client: Anthropic;

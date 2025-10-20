@@ -15,9 +15,9 @@ import {
   AISuggestTitleInput,
   AISuggestTagsInput,
   AIConfigInput,
-} from '../utils/validation.schemas';
-import { validateBody } from '../middleware/validate.middleware';
-import { authenticateToken } from '../middleware/auth.middleware';
+} from '../utils/validation.schemas.js';
+import { validateBody } from '../middleware/validate.middleware.js';
+import { authenticateToken } from '../middleware/auth.middleware.js';
 
 /**
  * AI Routes
