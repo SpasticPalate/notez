@@ -1,6 +1,6 @@
 services:
   # PostgreSQL Database
-  postgres:
+  notez-postgres:
     image: postgres:16-alpine
     container_name: notez-db
     restart: unless-stopped
@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Please set POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-notez}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - notez_data:/var/lib/postgresql/data
     networks:
       - notez-network
     healthcheck:
@@ -19,13 +19,13 @@ services:
       retries: 5
 
   # Database migrations (run once before backend starts)
-  migrations:
+  notez-migrations:
     image: ghcr.io/spasticpalate/notez:main
     container_name: notez-migrations
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-notez}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-notez}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-notez}:${POSTGRES_PASSWORD}@notez-postgres:5432/${POSTGRES_DB:-notez}?schema=public
     depends_on:
-      postgres:
+      notez-postgres:
         condition: service_healthy
     networks:
       - notez-network
@@ -34,26 +34,26 @@ services:
     restart: "no"
 
   # Backend API (serves both API and frontend static files)
-  backend:
+  notez-backend:
     image: ghcr.io/spasticpalate/notez:main
     container_name: notez-backend
     restart: unless-stopped
     ports:
-      - "80:3000"
+      - "5173:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
       HOST: 0.0.0.0
-      DATABASE_URL: postgresql://${POSTGRES_USER:-notez}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-notez}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-notez}:${POSTGRES_PASSWORD}@notez-postgres:5432/${POSTGRES_DB:-notez}?schema=public
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Please set JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Please set JWT_REFRESH_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Please set ENCRYPTION_KEY}
       CORS_ORIGIN: ${CORS_ORIGIN:-https://notez.curgghoth.com}
       COOKIE_SECRET: ${COOKIE_SECRET:-${JWT_REFRESH_SECRET}}
     depends_on:
-      postgres:
+      notez-postgres:
         condition: service_healthy
-      migrations:
+      notez-migrations:
         condition: service_completed_successfully
     networks:
       - notez-network
@@ -63,4 +63,15 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data:
+  notez_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /datapool/docker/notez/data
+      o: bind
+  notez_config:
+    driver: local
+    driver_opts:
+      type: none
+      device: /datapool/docker/notez/config
+      o: bind
