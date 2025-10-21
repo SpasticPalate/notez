@@ -2,6 +2,9 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
 import jwt from '@fastify/jwt';
+import fastifyStatic from '@fastify/static';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import 'dotenv/config';
 import { getDatabaseUrl, getDatabaseUrlSafe } from './lib/database-url.js';
 import { authRoutes } from './routes/auth.routes.js';
@@ -59,15 +62,6 @@ fastify.get('/health', async () => {
   }
 });
 
-// Root endpoint
-fastify.get('/', async () => {
-  return {
-    name: 'Notez API',
-    version: '1.0.0',
-    status: 'running'
-  };
-});
-
 // Register API routes
 await fastify.register(authRoutes, { prefix: '/api' });
 await fastify.register(usersRoutes, { prefix: '/api' });
@@ -76,6 +70,32 @@ await fastify.register(foldersRoutes, { prefix: '/api' });
 await fastify.register(tagRoutes, { prefix: '/api/tags' });
 await fastify.register(aiRoutes, { prefix: '/api/ai' });
 await fastify.register(searchRoutes, { prefix: '/api/search' });
+
+// Serve frontend static files (in production)
+// Get the directory of the current module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// In production, serve the built frontend from /app/frontend/dist
+// In development, this path won't exist and that's okay - frontend runs separately
+const frontendDistPath = join(__dirname, '../../frontend/dist');
+
+await fastify.register(fastifyStatic, {
+  root: frontendDistPath,
+  prefix: '/', // Serve from root
+});
+
+// Fallback route for SPA - send index.html for all non-API routes
+fastify.setNotFoundHandler(async (request, reply) => {
+  // Don't handle API routes or health check
+  if (request.url.startsWith('/api') || request.url.startsWith('/health')) {
+    reply.code(404).send({ error: 'Not found' });
+    return;
+  }
+
+  // For all other routes, serve index.html (SPA fallback)
+  return reply.sendFile('index.html');
+});
 
 // Start server
 const start = async () => {
