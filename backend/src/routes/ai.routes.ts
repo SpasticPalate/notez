@@ -279,9 +279,12 @@ export async function aiRoutes(fastify: FastifyInstance) {
         const { content, maxTags } = request.body;
 
         // Fetch user's existing tags to provide context to AI
+        // Limit to 50 most recently used tags for scalability
         const existingTags = await prisma.tag.findMany({
           where: { userId },
           select: { name: true },
+          orderBy: { updatedAt: 'desc' },
+          take: 50,
         });
 
         const existingTagNames = existingTags.map((tag: { name: string }) => tag.name);
