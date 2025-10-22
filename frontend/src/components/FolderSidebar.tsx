@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { foldersApi, tagsApi } from '../lib/api';
 import { ChevronLeft, ChevronRight, Folder, FolderPlus, Tag, ChevronDown, ChevronUp } from 'lucide-react';
 import { EditableListItem } from './EditableListItem';
@@ -26,14 +26,20 @@ interface FolderSidebarProps {
   onToggleCollapse: () => void;
 }
 
-export function FolderSidebar({
+export interface FolderSidebarHandle {
+  refreshFolders: () => void;
+  refreshTags: () => void;
+  refreshAll: () => void;
+}
+
+export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>(({
   selectedFolderId,
   selectedTagId,
   onSelectFolder,
   onSelectTag,
   collapsed,
   onToggleCollapse,
-}: FolderSidebarProps) {
+}, ref) => {
   const [folders, setFolders] = useState<FolderData[]>([]);
   const [tags, setTags] = useState<TagData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,9 +48,32 @@ export function FolderSidebar({
   const [tagsExpanded, setTagsExpanded] = useState(true);
 
   useEffect(() => {
-    loadFolders();
-    loadTags();
+    const loadAll = async () => {
+      setIsLoading(true);
+      await Promise.all([loadFolders(), loadTags()]);
+      setIsLoading(false);
+    };
+    loadAll();
   }, []);
+
+  // Expose refresh methods to parent
+  useImperativeHandle(ref, () => ({
+    refreshFolders: async () => {
+      setIsLoading(true);
+      await loadFolders();
+      setIsLoading(false);
+    },
+    refreshTags: async () => {
+      setIsLoading(true);
+      await loadTags();
+      setIsLoading(false);
+    },
+    refreshAll: async () => {
+      setIsLoading(true);
+      await Promise.all([loadFolders(), loadTags()]);
+      setIsLoading(false);
+    }
+  }));
 
   const loadFolders = async () => {
     try {
@@ -52,8 +81,6 @@ export function FolderSidebar({
       setFolders(response.data.folders);
     } catch (error) {
       console.error('Failed to load folders:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -304,4 +331,4 @@ export function FolderSidebar({
       </div>
     </div>
   );
-}
+});

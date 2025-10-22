@@ -16,10 +16,11 @@ interface Note {
 
 interface NoteEditorProps {
   noteId: string | null;
-  onNoteDeleted: () => void;
+  onNoteDeleted: (noteId: string) => void;
+  onTagsChanged?: () => void;
 }
 
-export function NoteEditor({ noteId, onNoteDeleted }: NoteEditorProps) {
+export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged }: NoteEditorProps) {
   const [note, setNote] = useState<Note | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -104,6 +105,11 @@ export function NoteEditor({ noteId, onNoteDeleted }: NoteEditorProps) {
       setTitle(updatedNote.title);
       setContent(updatedNote.content || '');
       setTags(updatedNote.tags || []);
+
+      // Notify parent if tags changed
+      if (tagsChanged) {
+        onTagsChanged?.();
+      }
     } catch (error) {
       console.error('Failed to save note:', error);
     } finally {
@@ -112,12 +118,14 @@ export function NoteEditor({ noteId, onNoteDeleted }: NoteEditorProps) {
   };
 
   const handleDeleteNote = async () => {
-    if (!note) return;
+    if (!note || !noteId) return;
+    // Prevent deleting if state is stale (noteId prop changed but note state hasn't updated)
+    if (note.id !== noteId) return;
     if (!confirm(`Delete "${note.title}"?`)) return;
 
     try {
-      await notesApi.delete(note.id);
-      onNoteDeleted();
+      await notesApi.delete(noteId);
+      onNoteDeleted(noteId);
     } catch (error) {
       console.error('Failed to delete note:', error);
       alert('Failed to delete note');
