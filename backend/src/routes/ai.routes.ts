@@ -18,7 +18,7 @@ import {
 } from '../utils/validation.schemas.js';
 import { validateBody } from '../middleware/validate.middleware.js';
 import { authenticateToken } from '../middleware/auth.middleware.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../lib/db.js';
 
 /**
  * AI Routes
@@ -284,7 +284,7 @@ export async function aiRoutes(fastify: FastifyInstance) {
           select: { name: true },
         });
 
-        const existingTagNames = existingTags.map((tag) => tag.name);
+        const existingTagNames = existingTags.map((tag: { name: string }) => tag.name);
 
         const tags = await aiService.suggestTags(userId, {
           content,
