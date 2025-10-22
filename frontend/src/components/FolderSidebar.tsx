@@ -48,17 +48,30 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
   const [tagsExpanded, setTagsExpanded] = useState(true);
 
   useEffect(() => {
-    loadFolders();
-    loadTags();
+    const loadAll = async () => {
+      setIsLoading(true);
+      await Promise.all([loadFolders(), loadTags()]);
+      setIsLoading(false);
+    };
+    loadAll();
   }, []);
 
   // Expose refresh methods to parent
   useImperativeHandle(ref, () => ({
-    refreshFolders: loadFolders,
-    refreshTags: loadTags,
-    refreshAll: () => {
-      loadFolders();
-      loadTags();
+    refreshFolders: async () => {
+      setIsLoading(true);
+      await loadFolders();
+      setIsLoading(false);
+    },
+    refreshTags: async () => {
+      setIsLoading(true);
+      await loadTags();
+      setIsLoading(false);
+    },
+    refreshAll: async () => {
+      setIsLoading(true);
+      await Promise.all([loadFolders(), loadTags()]);
+      setIsLoading(false);
     }
   }));
 
@@ -68,8 +81,6 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
       setFolders(response.data.folders);
     } catch (error) {
       console.error('Failed to load folders:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 

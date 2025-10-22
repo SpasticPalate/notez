@@ -118,13 +118,14 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged }: NoteEditorP
   };
 
   const handleDeleteNote = async () => {
-    if (!note) return;
+    if (!note || !noteId) return;
+    // Prevent deleting if state is stale (noteId prop changed but note state hasn't updated)
+    if (note.id !== noteId) return;
     if (!confirm(`Delete "${note.title}"?`)) return;
 
     try {
-      const deletedNoteId = note.id;
-      await notesApi.delete(deletedNoteId);
-      onNoteDeleted(deletedNoteId);
+      await notesApi.delete(noteId);
+      onNoteDeleted(noteId);
     } catch (error) {
       console.error('Failed to delete note:', error);
       alert('Failed to delete note');

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FolderSidebar, FolderSidebarHandle } from '../components/FolderSidebar';
-import { NoteList, NoteListHandle } from '../components/NoteList';
+import { FolderSidebar, type FolderSidebarHandle } from '../components/FolderSidebar';
+import { NoteList, type NoteListHandle } from '../components/NoteList';
 import { NoteEditor } from '../components/NoteEditor';
 import { SearchBar } from '../components/SearchBar';
 import { ThemeToggle } from '../components/ThemeToggle';
