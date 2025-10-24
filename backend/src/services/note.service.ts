@@ -59,7 +59,7 @@ export async function listNotes(
   const { folderId, tagId, search, limit = 50, offset = 0 } = options || {};
 
   // Build where clause
-  const where: any = { userId };
+  const where: any = { userId, deleted: false }; // Exclude deleted notes by default
 
   // Filter by folder (null means unfiled notes)
   if (folderId !== undefined) {
@@ -298,7 +298,7 @@ export async function updateNote(noteId: string, userId: string, data: UpdateNot
 }
 
 /**
- * Delete a note
+ * Soft delete a note (move to trash)
  */
 export async function deleteNote(noteId: string, userId: string) {
   // Verify note exists and belongs to user
@@ -313,7 +313,117 @@ export async function deleteNote(noteId: string, userId: string) {
     throw new Error('Note not found');
   }
 
-  // Delete note (tags will be cascade deleted via NoteTag relation)
+  // Soft delete by marking as deleted
+  await prisma.note.update({
+    where: { id: noteId },
+    data: {
+      deleted: true,
+      deletedAt: new Date(),
+    },
+  });
+
+  return { success: true };
+}
+
+/**
+ * List deleted notes (trash)
+ */
+export async function listDeletedNotes(
+  userId: string,
+  options?: {
+    limit?: number;
+    offset?: number;
+  }
+) {
+  const { limit = 50, offset = 0 } = options || {};
+
+  const [notes, total] = await Promise.all([
+    prisma.note.findMany({
+      where: { userId, deleted: true },
+      include: {
+        folder: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        tags: {
+          include: {
+            tag: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        deletedAt: 'desc',
+      },
+      take: limit,
+      skip: offset,
+    }),
+    prisma.note.count({ where: { userId, deleted: true } }),
+  ]);
+
+  // Transform tags to simpler format
+  const transformedNotes = notes.map((note) => ({
+    ...note,
+    tags: note.tags.map((nt) => nt.tag),
+  }));
+
+  return {
+    notes: transformedNotes,
+    total,
+    limit,
+    offset,
+  };
+}
+
+/**
+ * Restore a note from trash
+ */
+export async function restoreNote(noteId: string, userId: string) {
+  const note = await prisma.note.findFirst({
+    where: {
+      id: noteId,
+      userId,
+      deleted: true,
+    },
+  });
+
+  if (!note) {
+    throw new Error('Note not found in trash');
+  }
+
+  await prisma.note.update({
+    where: { id: noteId },
+    data: {
+      deleted: false,
+      deletedAt: null,
+    },
+  });
+
+  return { success: true };
+}
+
+/**
+ * Permanently delete a note
+ */
+export async function permanentlyDeleteNote(noteId: string, userId: string) {
+  const note = await prisma.note.findFirst({
+    where: {
+      id: noteId,
+      userId,
+    },
+  });
+
+  if (!note) {
+    throw new Error('Note not found');
+  }
+
+  // Permanently delete note (tags will be cascade deleted via NoteTag relation)
   await prisma.note.delete({
     where: { id: noteId },
   });
@@ -325,9 +435,10 @@ export async function deleteNote(noteId: string, userId: string) {
  * Get note statistics for a user
  */
 export async function getNoteStats(userId: string) {
-  const [totalNotes, unfiledNotes, foldersWithNotes] = await Promise.all([
-    prisma.note.count({ where: { userId } }),
-    prisma.note.count({ where: { userId, folderId: null } }),
+  const [totalNotes, unfiledNotes, deletedNotes, foldersWithNotes] = await Promise.all([
+    prisma.note.count({ where: { userId, deleted: false } }),
+    prisma.note.count({ where: { userId, folderId: null, deleted: false } }),
+    prisma.note.count({ where: { userId, deleted: true } }),
     prisma.folder.findMany({
       where: { userId },
       select: {
@@ -346,6 +457,7 @@ export async function getNoteStats(userId: string) {
   return {
     totalNotes,
     unfiledNotes,
+    deletedNotes,
     folders: foldersWithNotes,
   };
 }

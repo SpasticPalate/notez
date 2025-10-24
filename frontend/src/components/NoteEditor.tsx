@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { notesApi, aiApi } from '../lib/api';
-import { Save, Trash2, Sparkles, FileText as FileTextIcon, Tags } from 'lucide-react';
+import { Save, Trash2, Sparkles, FileText as FileTextIcon, Tags, RotateCcw } from 'lucide-react';
 import { TagInput } from './TagInput';
 
 interface Note {
@@ -12,15 +12,19 @@ interface Note {
   updatedAt: string;
   folder: { id: string; name: string } | null;
   tags: Array<{ id: string; name: string }>;
+  deleted?: boolean;
+  deletedAt?: string | null;
 }
 
 interface NoteEditorProps {
   noteId: string | null;
   onNoteDeleted: (noteId: string) => void;
   onTagsChanged?: () => void;
+  onNoteUpdated?: (noteId: string, updates: { title?: string; folderId?: string | null }) => void;
+  onNoteRestored?: (noteId: string) => void;
 }
 
-export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged }: NoteEditorProps) {
+export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated, onNoteRestored }: NoteEditorProps) {
   const [note, setNote] = useState<Note | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -88,6 +92,7 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged }: NoteEditorP
     const currentTagNames = tags.map((t) => t.name);
     const noteTagNames = (note.tags || []).map((t) => t.name);
     const tagsChanged = JSON.stringify(currentTagNames.sort()) !== JSON.stringify(noteTagNames.sort());
+    const titleChanged = title !== note.title;
 
     if (title === note.title && content === (note.content || '') && !tagsChanged) return;
 
@@ -110,6 +115,11 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged }: NoteEditorP
       if (tagsChanged) {
         onTagsChanged?.();
       }
+
+      // Notify parent if title changed
+      if (titleChanged) {
+        onNoteUpdated?.(note.id, { title: updatedNote.title });
+      }
     } catch (error) {
       console.error('Failed to save note:', error);
     } finally {
@@ -121,14 +131,40 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged }: NoteEditorP
     if (!note || !noteId) return;
     // Prevent deleting if state is stale (noteId prop changed but note state hasn't updated)
     if (note.id !== noteId) return;
-    if (!confirm(`Delete "${note.title}"?`)) return;
+
+    // If already in trash, permanently delete
+    if (note.deleted) {
+      if (!confirm(`Permanently delete "${note.title}"? This cannot be undone.`)) return;
+      try {
+        await notesApi.permanentDelete(noteId);
+        onNoteDeleted(noteId);
+      } catch (error) {
+        console.error('Failed to permanently delete note:', error);
+        alert('Failed to permanently delete note');
+      }
+    } else {
+      // Move to trash (soft delete)
+      if (!confirm(`Move "${note.title}" to trash?`)) return;
+      try {
+        await notesApi.delete(noteId);
+        onNoteDeleted(noteId);
+      } catch (error) {
+        console.error('Failed to delete note:', error);
+        alert('Failed to delete note');
+      }
+    }
+  };
+
+  const handleRestoreNote = async () => {
+    if (!note || !noteId) return;
+    if (note.id !== noteId) return;
 
     try {
-      await notesApi.delete(noteId);
-      onNoteDeleted(noteId);
+      await notesApi.restore(noteId);
+      onNoteRestored?.(noteId);
     } catch (error) {
-      console.error('Failed to delete note:', error);
-      alert('Failed to delete note');
+      console.error('Failed to restore note:', error);
+      alert('Failed to restore note');
     }
   };
 
@@ -244,8 +280,19 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged }: NoteEditorP
     );
   }
 
+  const isDeleted = note?.deleted || false;
+
   return (
     <div className="flex-1 flex flex-col bg-white dark:bg-gray-800">
+      {/* Trash Warning Banner */}
+      {isDeleted && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 px-6 py-3">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200">
+            This note is in the trash. Restore it to edit, or permanently delete it.
+          </p>
+        </div>
+      )}
+
       {/* Editor Header */}
       <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 space-y-3">
         <div className="flex items-center justify-between">
@@ -253,7 +300,8 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged }: NoteEditorP
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="flex-1 text-2xl font-bold text-gray-900 dark:text-white bg-transparent border-b-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none px-2 py-1 transition-colors"
+            disabled={isDeleted}
+            className="flex-1 text-2xl font-bold text-gray-900 dark:text-white bg-transparent border-b-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none px-2 py-1 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             placeholder="Untitled Note"
           />
           <div className="flex items-center space-x-3 ml-4">
@@ -275,11 +323,22 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged }: NoteEditorP
               </button>
             </div>
 
+            {/* Restore Button (for trash) */}
+            {note?.deleted && (
+              <button
+                onClick={handleRestoreNote}
+                className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-md"
+                title="Restore note"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            )}
+
             {/* Delete Button */}
             <button
               onClick={handleDeleteNote}
-              className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md"
-              title="Delete note"
+              className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
+              title={note?.deleted ? "Permanently delete" : "Move to trash"}
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -385,8 +444,17 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged }: NoteEditorP
             renderLineHighlight: 'none',
             overviewRulerBorder: false,
             hideCursorInOverviewRuler: true,
+            readOnly: isDeleted, // Make read-only when in trash
           }}
         />
+      </div>
+
+      {/* Word Count Footer */}
+      <div className="px-6 py-2 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-900">
+        <div className="text-xs text-gray-500 dark:text-gray-400 space-x-4">
+          <span>{content.trim() ? content.trim().split(/\s+/).length : 0} words</span>
+          <span>{content.length} characters</span>
+        </div>
       </div>
     </div>
   );

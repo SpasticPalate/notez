@@ -23,6 +23,7 @@ interface NoteListProps {
 export interface NoteListHandle {
   refresh: () => void;
   removeNote: (noteId: string) => void;
+  updateNote: (noteId: string, updates: { title?: string; folderId?: string | null }) => void;
 }
 
 export const NoteList = forwardRef<NoteListHandle, NoteListProps>(({ folderId, tagId, selectedNoteId, onSelectNote, onNoteCreated }, ref) => {
@@ -39,30 +40,43 @@ export const NoteList = forwardRef<NoteListHandle, NoteListProps>(({ folderId, t
     refresh: loadNotes,
     removeNote: (noteId: string) => {
       setNotes(prevNotes => prevNotes.filter(note => note.id !== noteId));
+    },
+    updateNote: (noteId: string, updates: { title?: string; folderId?: string | null }) => {
+      setNotes(prevNotes => prevNotes.map(note =>
+        note.id === noteId
+          ? { ...note, ...updates, folder: updates.folderId !== undefined ? note.folder : note.folder }
+          : note
+      ));
     }
   }));
 
   const loadNotes = async () => {
     setIsLoading(true);
     try {
-      const params: any = { limit: 100 };
-      if (folderId) {
-        // Special case: 'unfiled' means notes with no folder (folderId = null in backend)
-        if (folderId === 'unfiled') {
-          params.folderId = 'null';
-        } else {
-          params.folderId = folderId;
+      // Special case: 'trash' means load deleted notes
+      if (folderId === 'trash') {
+        const response = await notesApi.listTrash();
+        setNotes(response.data.notes);
+      } else {
+        const params: any = { limit: 100 };
+        if (folderId) {
+          // Special case: 'unfiled' means notes with no folder (folderId = null in backend)
+          if (folderId === 'unfiled') {
+            params.folderId = 'null';
+          } else {
+            params.folderId = folderId;
+          }
         }
-      }
-      if (tagId) {
-        params.tagId = tagId;
-      }
-      if (searchQuery) {
-        params.search = searchQuery;
-      }
+        if (tagId) {
+          params.tagId = tagId;
+        }
+        if (searchQuery) {
+          params.search = searchQuery;
+        }
 
-      const response = await notesApi.list(params);
-      setNotes(response.data.notes);
+        const response = await notesApi.list(params);
+        setNotes(response.data.notes);
+      }
     } catch (error) {
       console.error('Failed to load notes:', error);
     } finally {
@@ -80,7 +94,8 @@ export const NoteList = forwardRef<NoteListHandle, NoteListProps>(({ folderId, t
       const response = await notesApi.create({
         title: 'Untitled Note',
         content: '',
-        folderId: folderId || undefined,
+        // Don't set folderId for unfiled notes, or if no folder is selected
+        folderId: folderId && folderId !== 'unfiled' ? folderId : undefined,
       });
       const newNote = response.data.note;
       setNotes([newNote, ...notes]);
@@ -108,7 +123,7 @@ export const NoteList = forwardRef<NoteListHandle, NoteListProps>(({ folderId, t
   };
 
   return (
-    <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+    <div className="w-full md:w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-3">

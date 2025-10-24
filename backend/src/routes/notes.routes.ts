@@ -168,7 +168,7 @@ export async function notesRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // Delete note
+  // Delete note (soft delete - move to trash)
   fastify.delete(
     '/notes/:id',
     {
@@ -181,7 +181,7 @@ export async function notesRoutes(fastify: FastifyInstance) {
         await noteService.deleteNote(params.id, userId);
 
         return {
-          message: 'Note deleted successfully',
+          message: 'Note moved to trash',
         };
       } catch (error) {
         fastify.log.error(error);
@@ -196,6 +196,87 @@ export async function notesRoutes(fastify: FastifyInstance) {
         return reply.status(500).send({
           error: 'Internal Server Error',
           message: 'Failed to delete note',
+        });
+      }
+    }
+  );
+
+  // List deleted notes (trash)
+  fastify.get('/notes/trash', async (request, reply) => {
+    try {
+      const userId = request.user!.userId;
+      const result = await noteService.listDeletedNotes(userId);
+      return result;
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.status(500).send({
+        error: 'Internal Server Error',
+        message: 'Failed to list deleted notes',
+      });
+    }
+  });
+
+  // Restore note from trash
+  fastify.post(
+    '/notes/:id/restore',
+    {
+      preHandler: validateParams(noteIdParamSchema),
+    },
+    async (request, reply) => {
+      try {
+        const userId = request.user!.userId;
+        const params = request.params as z.infer<typeof noteIdParamSchema>;
+        await noteService.restoreNote(params.id, userId);
+
+        return {
+          message: 'Note restored successfully',
+        };
+      } catch (error) {
+        fastify.log.error(error);
+
+        if (error instanceof Error && error.message.includes('not found')) {
+          return reply.status(404).send({
+            error: 'Not Found',
+            message: error.message,
+          });
+        }
+
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: 'Failed to restore note',
+        });
+      }
+    }
+  );
+
+  // Permanently delete note
+  fastify.delete(
+    '/notes/:id/permanent',
+    {
+      preHandler: validateParams(noteIdParamSchema),
+    },
+    async (request, reply) => {
+      try {
+        const userId = request.user!.userId;
+        const params = request.params as z.infer<typeof noteIdParamSchema>;
+        await noteService.permanentlyDeleteNote(params.id, userId);
+
+        return {
+          message: 'Note permanently deleted',
+        };
+      } catch (error) {
+        fastify.log.error(error);
+
+        if (error instanceof Error && error.message.includes('not found')) {
+          return reply.status(404).send({
+            error: 'Not Found',
+            message: error.message,
+          });
+        }
+
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: 'Failed to permanently delete note',
         });
       }
     }

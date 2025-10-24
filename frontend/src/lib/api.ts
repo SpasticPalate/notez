@@ -102,6 +102,25 @@ export const notesApi = {
   delete: (id: string) => api.delete(`/api/notes/${id}`),
 
   stats: () => api.get('/api/notes/stats'),
+
+  // Trash operations
+  listTrash: () =>
+    api.get('/api/notes/trash').catch((error) => {
+      console.error('Failed to list trash notes:', error);
+      throw error;
+    }),
+
+  restore: (id: string) =>
+    api.post(`/api/notes/${id}/restore`).catch((error) => {
+      console.error('Failed to restore note:', error);
+      throw error;
+    }),
+
+  permanentDelete: (id: string) =>
+    api.delete(`/api/notes/${id}/permanent`).catch((error) => {
+      console.error('Failed to permanently delete note:', error);
+      throw error;
+    }),
 };
 
 export const foldersApi = {

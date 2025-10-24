@@ -1,6 +1,6 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { foldersApi, tagsApi, notesApi } from '../lib/api';
-import { ChevronLeft, ChevronRight, Folder, FolderPlus, Tag, ChevronDown, ChevronUp, FileQuestion } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Folder, FolderPlus, Tag, ChevronDown, ChevronUp, FileQuestion, Trash2 } from 'lucide-react';
 import { EditableListItem } from './EditableListItem';
 
 interface FolderData {
@@ -43,6 +43,7 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
   const [folders, setFolders] = useState<FolderData[]>([]);
   const [tags, setTags] = useState<TagData[]>([]);
   const [unfiledCount, setUnfiledCount] = useState(0);
+  const [deletedCount, setDeletedCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [showNewFolderInput, setShowNewFolderInput] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -98,6 +99,7 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
     try {
       const response = await notesApi.stats();
       setUnfiledCount(response.data.unfiledNotes || 0);
+      setDeletedCount(response.data.deletedNotes || 0);
     } catch (error) {
       console.error('Failed to load stats:', error);
     }
@@ -204,7 +206,7 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
   }
 
   return (
-    <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+    <div className="w-full md:w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full">
       {/* Sidebar Header */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
         <h2 className="font-semibold text-gray-900 dark:text-white">Folders</h2>
@@ -291,6 +293,27 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
           {unfiledCount > 0 && (
             <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full">
               {unfiledCount}
+            </span>
+          )}
+        </button>
+
+        {/* Trash */}
+        <button
+          onClick={() => {
+            onSelectFolder('trash');
+            onSelectTag(null);
+          }}
+          className={`w-full px-4 py-2.5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 ${
+            selectedFolderId === 'trash' ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600' : ''
+          }`}
+        >
+          <div className="flex items-center space-x-3">
+            <Trash2 className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Trash</span>
+          </div>
+          {deletedCount > 0 && (
+            <span className="px-2 py-0.5 text-xs font-medium bg-red-200 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full">
+              {deletedCount}
             </span>
           )}
         </button>
