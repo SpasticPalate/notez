@@ -4,6 +4,9 @@
 # Stage 1: Build Frontend
 FROM node:20-alpine AS frontend-builder
 
+# Accept version as build argument
+ARG APP_VERSION=0.28.2
+
 WORKDIR /app/frontend
 
 # Copy frontend package files
@@ -14,6 +17,9 @@ RUN npm ci
 
 # Copy frontend source
 COPY frontend/ ./
+
+# Set version environment variable for Vite
+ENV VITE_APP_VERSION=$APP_VERSION
 
 # Build frontend for production
 RUN npm run build
