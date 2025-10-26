@@ -103,9 +103,9 @@ export function EditorPage() {
       </nav>
 
       {/* Main Content Area */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden pb-20 xl:pb-0 ">
         {/* Folder Sidebar - Hidden on mobile unless mobileView === 'sidebar' */}
-        <div className={`${mobileView === 'sidebar' ? 'block' : 'hidden'} md:block`}>
+        <div className={`${mobileView === 'sidebar' ? 'block' : 'hidden'} xl:block`}>
           <FolderSidebar
             ref={sidebarRef}
             selectedFolderId={selectedFolderId}
@@ -126,7 +126,7 @@ export function EditorPage() {
         </div>
 
         {/* Note List - Hidden on mobile unless mobileView === 'list' */}
-        <div className={`${mobileView === 'list' ? 'block' : 'hidden'} md:block`}>
+        <div className={`${mobileView === 'list' ? 'block' : 'hidden'} xl:block`}>
           <NoteList
             ref={noteListRef}
             folderId={selectedFolderId}
@@ -141,7 +141,7 @@ export function EditorPage() {
         </div>
 
         {/* Note Editor - Hidden on mobile unless mobileView === 'editor' */}
-        <div className={`${mobileView === 'editor' ? '' : 'hidden'} md:flex flex-1 flex-col min-h-0`}>
+        <div className={`flex-1 flex-col min-h-0 ${mobileView === 'editor' ? 'flex' : 'hidden'} xl:flex`}>
           <NoteEditor
             noteId={selectedNoteId}
             onNoteDeleted={(noteId) => {
@@ -167,7 +167,7 @@ export function EditorPage() {
       </div>
 
       {/* Mobile Bottom Navigation - Only visible on small screens */}
-      <div className="md:hidden bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex justify-around py-2">
+      <div className="xl:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex justify-around py-4 px-2 min-h-[60px] z-50">
         <button
           onClick={() => setMobileView('sidebar')}
           className={`flex flex-col items-center px-4 py-2 rounded-md ${
