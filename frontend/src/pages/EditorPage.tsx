@@ -105,7 +105,7 @@ export function EditorPage() {
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Folder Sidebar - Hidden on mobile unless mobileView === 'sidebar' */}
-        <div className={`${mobileView === 'sidebar' ? 'block' : 'hidden'} md:block`}>
+        <div className={`${mobileView === 'sidebar' ? 'block' : 'hidden'} lg:block`}>
           <FolderSidebar
             ref={sidebarRef}
             selectedFolderId={selectedFolderId}
@@ -126,7 +126,7 @@ export function EditorPage() {
         </div>
 
         {/* Note List - Hidden on mobile unless mobileView === 'list' */}
-        <div className={`${mobileView === 'list' ? 'block' : 'hidden'} md:block`}>
+        <div className={`${mobileView === 'list' ? 'block' : 'hidden'} lg:block`}>
           <NoteList
             ref={noteListRef}
             folderId={selectedFolderId}
@@ -141,7 +141,7 @@ export function EditorPage() {
         </div>
 
         {/* Note Editor - Hidden on mobile unless mobileView === 'editor' */}
-        <div className={`${mobileView === 'editor' ? 'flex flex-col flex-1 min-h-0' : 'hidden'} md:flex md:flex-1 md:flex-col md:min-h-0`}>
+        <div className={`${mobileView === 'editor' ? 'flex flex-col flex-1 min-h-0' : 'hidden'} lg:flex lg:flex-1 lg:flex-col lg:min-h-0`}>
           <NoteEditor
             noteId={selectedNoteId}
             onNoteDeleted={(noteId) => {
@@ -167,7 +167,7 @@ export function EditorPage() {
       </div>
 
       {/* Mobile Bottom Navigation - Only visible on small screens */}
-      <div className="md:hidden flex-shrink-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex justify-around py-4 px-2 min-h-[60px]">
+      <div className="lg:hidden flex-shrink-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex justify-around py-4 px-2 min-h-[60px]">
         <button
           onClick={() => setMobileView('sidebar')}
           className={`flex flex-col items-center px-4 py-2 rounded-md ${
