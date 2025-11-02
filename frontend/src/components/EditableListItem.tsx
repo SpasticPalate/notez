@@ -12,6 +12,7 @@ interface EditableListItemProps {
   onDelete: (id: string, name: string) => Promise<void>;
   className?: string;
   indent?: boolean;
+  onDrop?: (id: string, noteId: string) => void;
 }
 
 export function EditableListItem({
@@ -25,9 +26,11 @@ export function EditableListItem({
   onDelete,
   className = '',
   indent = false,
+  onDrop,
 }: EditableListItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editingName, setEditingName] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const handleStartEdit = () => {
     setIsEditing(true);
@@ -52,12 +55,62 @@ export function EditableListItem({
     await onDelete(id, name);
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    if (onDrop) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDropEvent = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    if (onDrop) {
+      try {
+        const rawData = e.dataTransfer.getData('application/json');
+
+        // Validate data isn't oversized (prevent DoS)
+        if (rawData.length > 10000) {
+          console.warn('Drop data exceeds size limit');
+          return;
+        }
+
+        const data = JSON.parse(rawData);
+
+        // Validate schema: must be object with noteId string
+        if (
+          data &&
+          typeof data === 'object' &&
+          typeof data.noteId === 'string' &&
+          data.noteId.length > 0 &&
+          data.noteId.length < 100 // CUID is typically 25 chars
+        ) {
+          onDrop(id, data.noteId);
+        }
+      } catch (error) {
+        // Silent fail for invalid drag data (don't expose internals)
+        return;
+      }
+    }
+  };
+
   const baseClassName = `group w-full px-4 py-2.5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 ${
     isSelected ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600' : ''
-  } ${indent ? 'pl-12' : ''} ${className}`;
+  } ${indent ? 'pl-12' : ''} ${isDragOver ? 'bg-green-100 dark:bg-green-900/30 border-2 border-green-500' : ''} ${className}`;
 
   return (
-    <div className={baseClassName}>
+    <div
+      className={baseClassName}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDropEvent}
+    >
       {isEditing ? (
         // Edit mode
         <div className="flex items-center space-x-2 flex-1">

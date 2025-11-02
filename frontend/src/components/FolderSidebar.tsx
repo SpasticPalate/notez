@@ -24,6 +24,7 @@ interface FolderSidebarProps {
   onSelectTag: (tagId: string | null) => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  onNoteMoved?: () => void;
 }
 
 export interface FolderSidebarHandle {
@@ -39,6 +40,7 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
   onSelectTag,
   collapsed,
   onToggleCollapse,
+  onNoteMoved,
 }, ref) => {
   const [folders, setFolders] = useState<FolderData[]>([]);
   const [tags, setTags] = useState<TagData[]>([]);
@@ -48,6 +50,7 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
   const [showNewFolderInput, setShowNewFolderInput] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [tagsExpanded, setTagsExpanded] = useState(true);
+  const [isDragOverUnfiled, setIsDragOverUnfiled] = useState(false);
 
   useEffect(() => {
     const loadAll = async () => {
@@ -191,6 +194,25 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
     }
   };
 
+  const handleNoteDrop = async (folderId: string, noteId: string) => {
+    try {
+      // Update note's folder
+      await notesApi.update(noteId, { folderId: folderId === 'unfiled' ? null : folderId });
+
+      // Refresh counts and folders in parallel for faster UI update
+      await Promise.all([loadStats(), loadFolders()]);
+
+      // Notify parent to refresh note list immediately
+      onNoteMoved?.();
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Failed to move note';
+      alert(errorMessage);
+      // Refresh to revert any optimistic updates
+      await Promise.all([loadStats(), loadFolders()]);
+      onNoteMoved?.();
+    }
+  };
+
   if (collapsed) {
     return (
       <div className="w-12 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col items-center py-4">
@@ -282,9 +304,43 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
             onSelectFolder('unfiled');
             onSelectTag(null);
           }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            setIsDragOverUnfiled(true);
+          }}
+          onDragLeave={() => setIsDragOverUnfiled(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragOverUnfiled(false);
+            try {
+              const rawData = e.dataTransfer.getData('application/json');
+
+              // Validate data isn't oversized
+              if (rawData.length > 10000) {
+                return;
+              }
+
+              const data = JSON.parse(rawData);
+
+              // Validate schema: must be object with noteId string
+              if (
+                data &&
+                typeof data === 'object' &&
+                typeof data.noteId === 'string' &&
+                data.noteId.length > 0 &&
+                data.noteId.length < 100
+              ) {
+                handleNoteDrop('unfiled', data.noteId);
+              }
+            } catch (error) {
+              // Silent fail for invalid drag data
+              return;
+            }
+          }}
           className={`w-full px-4 py-2.5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 ${
             selectedFolderId === 'unfiled' ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600' : ''
-          }`}
+          } ${isDragOverUnfiled ? 'bg-green-100 dark:bg-green-900/30 border-2 border-green-500' : ''}`}
         >
           <div className="flex items-center space-x-3">
             <FileQuestion className="w-5 h-5 text-gray-400 dark:text-gray-500" />
@@ -337,6 +393,7 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
               onSelect={() => onSelectFolder(folder.id)}
               onRename={handleRenameFolder}
               onDelete={handleDeleteFolder}
+              onDrop={handleNoteDrop}
             />
           ))
         )}

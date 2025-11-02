@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
-import { notesApi, aiApi } from '../lib/api';
-import { Save, Trash2, Sparkles, FileText as FileTextIcon, Tags, RotateCcw } from 'lucide-react';
+import { notesApi, aiApi, foldersApi } from '../lib/api';
+import { Save, Trash2, Sparkles, FileText as FileTextIcon, Tags, RotateCcw, Folder } from 'lucide-react';
 import { TagInput } from './TagInput';
 
 interface Note {
@@ -14,6 +14,12 @@ interface Note {
   tags: Array<{ id: string; name: string }>;
   deleted?: boolean;
   deletedAt?: string | null;
+}
+
+interface FolderData {
+  id: string;
+  name: string;
+  noteCount: number;
 }
 
 interface NoteEditorProps {
@@ -29,12 +35,19 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [tags, setTags] = useState<Array<{ id: string; name: string }>>([]);
+  const [folders, setFolders] = useState<FolderData[]>([]);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [aiLoading, setAiLoading] = useState<'summarize' | 'title' | 'tags' | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load folders on mount
+  useEffect(() => {
+    loadFolders();
+  }, []);
 
   // Load note when noteId changes
   useEffect(() => {
@@ -45,6 +58,7 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated
       setTitle('');
       setContent('');
       setTags([]);
+      setSelectedFolderId(null);
     }
   }, [noteId]);
 
@@ -67,7 +81,16 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [title, content, tags]);
+  }, [title, content, tags, selectedFolderId]);
+
+  const loadFolders = async () => {
+    try {
+      const response = await foldersApi.list();
+      setFolders(response.data.folders);
+    } catch (error) {
+      console.error('Failed to load folders:', error);
+    }
+  };
 
   const loadNote = async (id: string) => {
     setIsLoading(true);
@@ -78,6 +101,7 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated
       setTitle(loadedNote.title);
       setContent(loadedNote.content || '');
       setTags(loadedNote.tags || []);
+      setSelectedFolderId(loadedNote.folder?.id || null);
       setLastSaved(new Date(loadedNote.updatedAt));
     } catch (error) {
       console.error('Failed to load note:', error);
@@ -93,8 +117,9 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated
     const noteTagNames = (note.tags || []).map((t) => t.name);
     const tagsChanged = JSON.stringify(currentTagNames.sort()) !== JSON.stringify(noteTagNames.sort());
     const titleChanged = title !== note.title;
+    const folderChanged = selectedFolderId !== (note.folder?.id || null);
 
-    if (title === note.title && content === (note.content || '') && !tagsChanged) return;
+    if (title === note.title && content === (note.content || '') && !tagsChanged && !folderChanged) return;
 
     setIsSaving(true);
     try {
@@ -102,23 +127,37 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated
         title,
         content,
         tags: currentTagNames,
+        folderId: selectedFolderId,
       });
       const updatedNote = response.data.note;
       setLastSaved(new Date(updatedNote.updatedAt));
-      // Update local state with canonical data from server (important for tag IDs)
+
+      // Update note object with server response
       setNote(updatedNote);
-      setTitle(updatedNote.title);
-      setContent(updatedNote.content || '');
+
+      // CRITICAL: Only update title/content if they match what we sent
+      // This prevents cursor jumps when user is still typing
+      // Tags must be updated to get proper IDs from server
+      if (title === updatedNote.title) {
+        setTitle(updatedNote.title);
+      }
+      if (content === (updatedNote.content || '')) {
+        setContent(updatedNote.content || '');
+      }
       setTags(updatedNote.tags || []);
+      setSelectedFolderId(updatedNote.folder?.id || null);
 
       // Notify parent if tags changed
       if (tagsChanged) {
         onTagsChanged?.();
       }
 
-      // Notify parent if title changed
-      if (titleChanged) {
-        onNoteUpdated?.(note.id, { title: updatedNote.title });
+      // Notify parent if title or folder changed
+      if (titleChanged || folderChanged) {
+        onNoteUpdated?.(note.id, {
+          title: updatedNote.title,
+          folderId: updatedNote.folder?.id || null
+        });
       }
     } catch (error) {
       console.error('Failed to save note:', error);
@@ -345,18 +384,41 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated
           </div>
         </div>
 
-        {/* Tags */}
-        <TagInput
-          tags={tags}
-          onChange={(tagNames) => {
-            // Convert tag names to tag objects, preserving existing IDs
-            const newTags = tagNames.map((name) => {
-              const existing = tags.find((t) => t.name === name);
-              return existing || { id: '', name };
-            });
-            setTags(newTags);
-          }}
-        />
+        {/* Folder Selector and Tags Row */}
+        <div className="flex items-center space-x-4">
+          {/* Folder Selector */}
+          <div className="flex items-center space-x-2 min-w-0">
+            <Folder className="w-4 h-4 text-gray-500 flex-shrink-0" />
+            <select
+              value={selectedFolderId || ''}
+              onChange={(e) => setSelectedFolderId(e.target.value || null)}
+              disabled={isDeleted}
+              className="text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <option value="">Unfiled</option>
+              {folders.map((folder) => (
+                <option key={folder.id} value={folder.id}>
+                  {folder.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Tags */}
+          <div className="flex-1 min-w-0">
+            <TagInput
+              tags={tags}
+              onChange={(tagNames) => {
+                // Convert tag names to tag objects, preserving existing IDs
+                const newTags = tagNames.map((name) => {
+                  const existing = tags.find((t) => t.name === name);
+                  return existing || { id: '', name };
+                });
+                setTags(newTags);
+              }}
+            />
+          </div>
+        </div>
 
         {/* AI Actions */}
         <div className="flex items-center space-x-2 pt-2">

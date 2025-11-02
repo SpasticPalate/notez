@@ -122,6 +122,10 @@ export function EditorPage() {
             }}
             collapsed={sidebarCollapsed}
             onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+            onNoteMoved={() => {
+              // Refresh note list when a note is moved via drag-and-drop
+              noteListRef.current?.refresh();
+            }}
           />
         </div>
 
