@@ -73,12 +73,29 @@ export function EditableListItem({
 
     if (onDrop) {
       try {
-        const data = JSON.parse(e.dataTransfer.getData('application/json'));
-        if (data.noteId) {
+        const rawData = e.dataTransfer.getData('application/json');
+
+        // Validate data isn't oversized (prevent DoS)
+        if (rawData.length > 10000) {
+          console.warn('Drop data exceeds size limit');
+          return;
+        }
+
+        const data = JSON.parse(rawData);
+
+        // Validate schema: must be object with noteId string
+        if (
+          data &&
+          typeof data === 'object' &&
+          typeof data.noteId === 'string' &&
+          data.noteId.length > 0 &&
+          data.noteId.length < 100 // CUID is typically 25 chars
+        ) {
           onDrop(id, data.noteId);
         }
       } catch (error) {
-        console.error('Failed to parse drop data:', error);
+        // Silent fail for invalid drag data (don't expose internals)
+        return;
       }
     }
   };

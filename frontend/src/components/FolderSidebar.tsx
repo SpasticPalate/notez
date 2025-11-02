@@ -198,12 +198,18 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
     try {
       // Update note's folder
       await notesApi.update(noteId, { folderId: folderId === 'unfiled' ? null : folderId });
-      // Refresh counts and notify parent
-      await loadStats();
-      await loadFolders();
+
+      // Refresh counts and folders in parallel for faster UI update
+      await Promise.all([loadStats(), loadFolders()]);
+
+      // Notify parent to refresh note list immediately
       onNoteMoved?.();
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to move note');
+      const errorMessage = error.response?.data?.message || 'Failed to move note';
+      alert(errorMessage);
+      // Refresh to revert any optimistic updates
+      await Promise.all([loadStats(), loadFolders()]);
+      onNoteMoved?.();
     }
   };
 
@@ -308,12 +314,28 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
             e.preventDefault();
             setIsDragOverUnfiled(false);
             try {
-              const data = JSON.parse(e.dataTransfer.getData('application/json'));
-              if (data.noteId) {
+              const rawData = e.dataTransfer.getData('application/json');
+
+              // Validate data isn't oversized
+              if (rawData.length > 10000) {
+                return;
+              }
+
+              const data = JSON.parse(rawData);
+
+              // Validate schema: must be object with noteId string
+              if (
+                data &&
+                typeof data === 'object' &&
+                typeof data.noteId === 'string' &&
+                data.noteId.length > 0 &&
+                data.noteId.length < 100
+              ) {
                 handleNoteDrop('unfiled', data.noteId);
               }
             } catch (error) {
-              console.error('Failed to parse drop data:', error);
+              // Silent fail for invalid drag data
+              return;
             }
           }}
           className={`w-full px-4 py-2.5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 ${
