@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { notesApi, aiApi, foldersApi } from '../lib/api';
-import { Save, Trash2, Sparkles, FileText as FileTextIcon, Tags, RotateCcw, Folder } from 'lucide-react';
+import { Save, Trash2, Sparkles, FileText as FileTextIcon, Tags, RotateCcw, Folder, Eye, Code, HelpCircle } from 'lucide-react';
 import { TagInput } from './TagInput';
+import { TiptapEditor } from './TiptapEditor';
+import { MarkdownHelp } from './MarkdownHelp';
 
 interface Note {
   id: string;
@@ -30,6 +32,8 @@ interface NoteEditorProps {
   onNoteRestored?: (noteId: string) => void;
 }
 
+type EditorMode = 'formatted' | 'raw';
+
 export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated, onNoteRestored }: NoteEditorProps) {
   const [note, setNote] = useState<Note | null>(null);
   const [title, setTitle] = useState('');
@@ -37,6 +41,8 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated
   const [tags, setTags] = useState<Array<{ id: string; name: string }>>([]);
   const [folders, setFolders] = useState<FolderData[]>([]);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [editorMode, setEditorMode] = useState<EditorMode>('formatted');
+  const [showMarkdownHelp, setShowMarkdownHelp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -344,6 +350,16 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated
             placeholder="Untitled Note"
           />
           <div className="flex items-center space-x-3 ml-4">
+            {/* Markdown Help Button */}
+            <button
+              onClick={() => setShowMarkdownHelp(true)}
+              disabled={isDeleted}
+              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              title="Markdown syntax help"
+            >
+              <HelpCircle className="w-5 h-5" />
+            </button>
+
             {/* Save Status */}
             <div className="flex items-center space-x-2">
               {isSaving ? (
@@ -420,6 +436,28 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated
           </div>
         </div>
 
+        {/* Editor Mode Toggle - Below Tags */}
+        <div className="flex justify-end pt-2">
+          <button
+            onClick={() => setEditorMode(editorMode === 'formatted' ? 'raw' : 'formatted')}
+            disabled={isDeleted}
+            className="flex items-center space-x-1 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            title={editorMode === 'formatted' ? 'Switch to raw markdown' : 'Switch to formatted view'}
+          >
+            {editorMode === 'formatted' ? (
+              <>
+                <Code className="w-4 h-4" />
+                <span>Raw</span>
+              </>
+            ) : (
+              <>
+                <Eye className="w-4 h-4" />
+                <span>Formatted</span>
+              </>
+            )}
+          </button>
+        </div>
+
         {/* AI Actions */}
         <div className="flex items-center space-x-2 pt-2">
           <Sparkles className="w-4 h-4 text-purple-600" />
@@ -488,27 +526,38 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated
         </div>
       </div>
 
-      {/* Monaco Editor */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <Editor
-          height="100%"
-          defaultLanguage="markdown"
-          value={content}
-          onChange={(value) => setContent(value || '')}
-          theme="vs-light"
-          options={{
-            minimap: { enabled: false },
-            fontSize: 14,
-            lineNumbers: 'off',
-            wordWrap: 'on',
-            padding: { top: 16, bottom: 16 },
-            scrollBeyondLastLine: false,
-            renderLineHighlight: 'none',
-            overviewRulerBorder: false,
-            hideCursorInOverviewRuler: true,
-            readOnly: isDeleted, // Make read-only when in trash
-          }}
-        />
+      {/* Editor (Tiptap or Monaco) */}
+      <div className="flex-1 min-h-0" style={{ overflow: editorMode === 'formatted' ? 'visible' : 'hidden' }}>
+        {editorMode === 'formatted' ? (
+          <TiptapEditor
+            key="formatted-editor"
+            content={content}
+            onChange={setContent}
+            disabled={isDeleted}
+            placeholder="Start writing your note... Use markdown: ## headers, **bold**, *italic*, - lists, [ ] tasks"
+          />
+        ) : (
+          <Editor
+            key="raw-editor"
+            height="100%"
+            defaultLanguage="markdown"
+            value={content}
+            onChange={(value) => setContent(value || '')}
+            theme="vs-light"
+            options={{
+              minimap: { enabled: false },
+              fontSize: 14,
+              lineNumbers: 'off',
+              wordWrap: 'on',
+              padding: { top: 16, bottom: 16 },
+              scrollBeyondLastLine: false,
+              renderLineHighlight: 'none',
+              overviewRulerBorder: false,
+              hideCursorInOverviewRuler: true,
+              readOnly: isDeleted, // Make read-only when in trash
+            }}
+          />
+        )}
       </div>
 
       {/* Word Count Footer */}
@@ -518,6 +567,9 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated
           <span>{content.length} characters</span>
         </div>
       </div>
+
+      {/* Markdown Help Modal */}
+      <MarkdownHelp isOpen={showMarkdownHelp} onClose={() => setShowMarkdownHelp(false)} />
     </div>
   );
 }
