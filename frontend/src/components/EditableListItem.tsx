@@ -12,6 +12,7 @@ interface EditableListItemProps {
   onDelete: (id: string, name: string) => Promise<void>;
   className?: string;
   indent?: boolean;
+  onDrop?: (id: string, noteId: string) => void;
 }
 
 export function EditableListItem({
@@ -25,9 +26,11 @@ export function EditableListItem({
   onDelete,
   className = '',
   indent = false,
+  onDrop,
 }: EditableListItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editingName, setEditingName] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const handleStartEdit = () => {
     setIsEditing(true);
@@ -52,12 +55,45 @@ export function EditableListItem({
     await onDelete(id, name);
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    if (onDrop) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDropEvent = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    if (onDrop) {
+      try {
+        const data = JSON.parse(e.dataTransfer.getData('application/json'));
+        if (data.noteId) {
+          onDrop(id, data.noteId);
+        }
+      } catch (error) {
+        console.error('Failed to parse drop data:', error);
+      }
+    }
+  };
+
   const baseClassName = `group w-full px-4 py-2.5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 ${
     isSelected ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600' : ''
-  } ${indent ? 'pl-12' : ''} ${className}`;
+  } ${indent ? 'pl-12' : ''} ${isDragOver ? 'bg-green-100 dark:bg-green-900/30 border-2 border-green-500' : ''} ${className}`;
 
   return (
-    <div className={baseClassName}>
+    <div
+      className={baseClassName}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDropEvent}
+    >
       {isEditing ? (
         // Edit mode
         <div className="flex items-center space-x-2 flex-1">

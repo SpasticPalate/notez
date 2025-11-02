@@ -163,7 +163,12 @@ export const NoteList = forwardRef<NoteListHandle, NoteListProps>(({ folderId, t
             <button
               key={note.id}
               onClick={() => onSelectNote(note.id)}
-              className={`w-full px-4 py-3 border-b border-gray-100 hover:bg-gray-50 dark:bg-gray-700 text-left ${
+              draggable={folderId !== 'trash'}
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('application/json', JSON.stringify({ noteId: note.id, noteTitle: note.title }));
+              }}
+              className={`w-full px-4 py-3 border-b border-gray-100 hover:bg-gray-50 dark:bg-gray-700 text-left cursor-move ${
                 selectedNoteId === note.id ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600' : ''
               }`}
             >
