@@ -67,7 +67,7 @@ export default function TaskForm({ task, onClose, onSuccess }: TaskFormProps) {
         description: description.trim() || undefined,
         status,
         priority,
-        dueDate: dueDate || undefined,
+        dueDate: dueDate ? `${dueDate}T00:00:00.000Z` : undefined,
         folderId: folderId || undefined,
         tags: tags.length > 0 ? tags : undefined,
       };

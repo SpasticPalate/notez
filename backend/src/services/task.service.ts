@@ -413,32 +413,35 @@ export async function updateTask(taskId: string, userId: string, data: UpdateTas
  * Quick update task status
  */
 export async function updateTaskStatus(taskId: string, userId: string, status: string) {
-  // Verify task exists and belongs to user
-  const task = await prisma.task.findFirst({
+  // Prepare update data
+  const updateData: any = { status };
+  if (status === 'COMPLETED') {
+    updateData.completedAt = new Date();
+  } else {
+    // Clear completedAt if task is moved back to non-completed status
+    updateData.completedAt = null;
+  }
+
+  // Use updateMany for atomic operation that verifies ownership
+  const result = await prisma.task.updateMany({
     where: {
       id: taskId,
       userId,
     },
-  });
-
-  if (!task) {
-    throw new Error('Task not found');
-  }
-
-  // Update status
-  const updateData: any = { status };
-  if (status === 'COMPLETED') {
-    updateData.completedAt = new Date();
-  } else if (task.completedAt) {
-    updateData.completedAt = null;
-  }
-
-  const updatedTask = await prisma.task.update({
-    where: { id: taskId },
     data: updateData,
   });
 
-  return updatedTask;
+  // Check if task was found and updated
+  if (result.count === 0) {
+    throw new Error('Task not found');
+  }
+
+  // Fetch and return the updated task
+  const updatedTask = await prisma.task.findUnique({
+    where: { id: taskId },
+  });
+
+  return updatedTask!;
 }
 
 /**

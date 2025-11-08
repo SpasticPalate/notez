@@ -79,12 +79,11 @@ export function extractTasksFromNote(
 ): ExtractedTask[] {
   let tasks: Array<{ title: string; checked: boolean }> = [];
 
-  // Try to detect if content is HTML or Markdown
-  if (content.includes('<') && content.includes('>')) {
-    // Likely HTML from Tiptap
-    tasks = extractTasksFromHTML(content);
-  } else {
-    // Likely Markdown
+  // Try HTML parsing first (Tiptap saves as HTML)
+  tasks = extractTasksFromHTML(content);
+
+  // If no tasks found in HTML, try markdown as fallback
+  if (tasks.length === 0) {
     tasks = extractTasksFromMarkdown(content);
   }
 
@@ -157,11 +156,12 @@ export async function importTasksFromNotes(
   userId: string,
   extractedTasks: ExtractedTask[]
 ): Promise<any[]> {
-  const createdTasks = [];
+  // Use a transaction to ensure all tasks are created atomically
+  return prisma.$transaction(async (tx: any) => {
+    const createdTasks = [];
 
-  for (const task of extractedTasks) {
-    try {
-      const createdTask = await prisma.task.create({
+    for (const task of extractedTasks) {
+      const createdTask = await tx.task.create({
         data: {
           userId,
           title: task.title,
@@ -188,10 +188,8 @@ export async function importTasksFromNotes(
       });
 
       createdTasks.push(createdTask);
-    } catch (error) {
-      console.error(`Failed to import task: ${task.title}`, error);
     }
-  }
 
-  return createdTasks;
+    return createdTasks;
+  });
 }
