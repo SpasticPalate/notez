@@ -34,9 +34,10 @@ export function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-700">
       <div className="max-w-md w-full space-y-8 p-8 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-        <div>
-          <h2 className="text-center text-3xl font-bold text-gray-900 dark:text-white">Notez</h2>
-          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
+        <div className="text-center">
+          <img src="/icon-192x192.png" alt="Notez" className="w-16 h-16 mx-auto mb-4" />
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Notez</h2>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
             Sign in to your account
           </p>
         </div>

@@ -59,6 +59,7 @@ export function SetupPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="max-w-md w-full space-y-8 p-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
         <div className="text-center">
+          <img src="/icon-192x192.png" alt="Notez" className="w-20 h-20 mx-auto mb-4" />
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Welcome to Notez</h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400 dark:text-gray-500">Let's set up your admin account</p>
         </div>

@@ -77,6 +77,7 @@ export function EditorPage() {
       {/* Top Navigation */}
       <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center space-x-2 md:space-x-4">
+          <img src="/icon-192x192.png" alt="Notez" className="w-8 h-8" />
           <h1 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">Notez</h1>
         </div>
         <div className="flex items-center space-x-2 md:space-x-4">
