@@ -7,11 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.31.1] - 2025-01-02
+
 ### Added
 
 - **Image Upload Button**: Manual upload button in editor toolbar for adding images
 - **Inline Image Resizing**: Drag handles to resize images directly in the editor
 - Image width persists in markdown format for consistent rendering
+
+### Security
+
+- Fixed XSS vulnerability in image title attribute processing
+- Added client-side file validation (10MB size limit, MIME type checking)
+- Added URL protocol sanitization to block javascript: and other dangerous URLs
+- Added HTML tag stripping for image alt/title attributes
 
 ## [0.31.0] - 2024-12-01
 
@@ -127,7 +136,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker deployment support
 - Multi-user authentication
 
-[Unreleased]: https://github.com/SpasticPalate/notez/compare/v0.30.1...HEAD
+[Unreleased]: https://github.com/SpasticPalate/notez/compare/v0.31.1...HEAD
+[0.31.1]: https://github.com/SpasticPalate/notez/compare/v0.31.0...v0.31.1
+[0.31.0]: https://github.com/SpasticPalate/notez/compare/v0.30.1...v0.31.0
 [0.30.1]: https://github.com/SpasticPalate/notez/compare/v0.30.0...v0.30.1
 [0.30.0]: https://github.com/SpasticPalate/notez/compare/v0.29.1...v0.30.0
 [0.29.1]: https://github.com/SpasticPalate/notez/compare/v0.29.0...v0.29.1
