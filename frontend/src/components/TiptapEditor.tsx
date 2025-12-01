@@ -88,7 +88,9 @@ turndownService.addRule('images', {
     }
 
     if (titlePart) {
-      return `![${alt}](${src} "${titlePart}")`;
+      // Escape double quotes in title to prevent broken markdown
+      const escapedTitlePart = titlePart.replace(/"/g, '\\"');
+      return `![${alt}](${src} "${escapedTitlePart}")`;
     }
     return `![${alt}](${src})`;
   },
@@ -138,10 +140,24 @@ function markdownToHTML(markdown: string): string {
       if (widthMatch) {
         const width = widthMatch[1];
         const cleanTitle = titleAttr.replace(/\|width=\d+/, '').trim();
-        const titlePart = cleanTitle ? ` title="${cleanTitle}"` : '';
+        // Escape HTML entities to prevent XSS via title attribute injection
+        const escapedTitle = cleanTitle
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        const titlePart = escapedTitle ? ` title="${escapedTitle}"` : '';
         return `<img${before}${titlePart} width="${width}"${after}>`;
       }
-      return `<img${before} title="${titleAttr}"${after}>`;
+      // Also escape the original title if no width match
+      const escapedTitleAttr = titleAttr
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      return `<img${before} title="${escapedTitleAttr}"${after}>`;
     });
 
     // Post-process to handle task lists that marked might not catch
@@ -292,11 +308,26 @@ export function TiptapEditor({ content, onChange, disabled = false, placeholder 
     }
   }, [disabled, editor]);
 
+  // Maximum file size: 10MB
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
+  // Allowed MIME types
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
   // Handle file selection from the upload button
   const handleFileSelect = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (file && editor) {
+        // Validate file type
+        if (!ALLOWED_TYPES.includes(file.type)) {
+          console.error('Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.');
+          return;
+        }
+        // Validate file size
+        if (file.size > MAX_FILE_SIZE) {
+          console.error('File too large. Maximum size is 10MB.');
+          return;
+        }
         const url = await handleImageUpload(file);
         if (url) {
           editor.chain().focus().setImage({ src: url }).run();

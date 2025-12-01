@@ -1,6 +1,28 @@
 import { NodeViewWrapper } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/react';
-import { useCallback, useRef, useState, useEffect } from 'react';
+import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
+
+/**
+ * Sanitize image src to prevent javascript: URLs and other unsafe protocols
+ */
+function sanitizeSrc(src: string | undefined | null): string {
+  if (!src || typeof src !== 'string') return '';
+  const trimmed = src.trim().toLowerCase();
+  // Block dangerous protocols
+  if (trimmed.startsWith('javascript:') || trimmed.startsWith('data:text/html') || trimmed.startsWith('vbscript:')) {
+    return '';
+  }
+  return src;
+}
+
+/**
+ * Sanitize text attributes (alt, title) - strip any HTML tags
+ */
+function sanitizeText(text: string | undefined | null): string {
+  if (!text || typeof text !== 'string') return '';
+  // Remove any HTML tags and trim
+  return text.replace(/<[^>]*>/g, '').trim();
+}
 
 /**
  * Resizable image component for TipTap editor.
@@ -15,6 +37,11 @@ export function ResizableImage({ node, updateAttributes, selected }: NodeViewPro
   const cleanupRef = useRef<(() => void) | null>(null);
 
   const { src, alt, title, width } = node.attrs;
+
+  // Sanitize attributes to prevent XSS
+  const safeSrc = useMemo(() => sanitizeSrc(src), [src]);
+  const safeAlt = useMemo(() => sanitizeText(alt), [alt]);
+  const safeTitle = useMemo(() => sanitizeText(title), [title]);
 
   // Calculate aspect ratio when image loads
   const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -79,9 +106,9 @@ export function ResizableImage({ node, updateAttributes, selected }: NodeViewPro
         style={{ width: width ? `${width}px` : 'auto', maxWidth: '100%' }}
       >
         <img
-          src={src}
-          alt={alt || ''}
-          title={title}
+          src={safeSrc}
+          alt={safeAlt}
+          title={safeTitle || undefined}
           onLoad={handleImageLoad}
           draggable={false}
           style={{

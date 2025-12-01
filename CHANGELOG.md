@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Image Upload Button**: Manual upload button in editor toolbar for adding images
+- **Inline Image Resizing**: Drag handles to resize images directly in the editor
+- Image width persists in markdown format for consistent rendering
+
 ## [0.31.0] - 2024-12-01
 
 ### Added
