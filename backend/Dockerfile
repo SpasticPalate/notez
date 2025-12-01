@@ -19,10 +19,13 @@ RUN npm run prisma:generate
 # Build TypeScript
 RUN npm run build
 
-# Production stage
-FROM node:20-alpine
+# Production stage - using slim (Debian) for better Prisma compatibility
+FROM node:20-slim
 
 WORKDIR /app
+
+# Install OpenSSL for Prisma
+RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Copy package files
 COPY package*.json ./
@@ -35,9 +38,9 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+# Create non-root user (Debian syntax)
+RUN groupadd --gid 1001 nodejs && \
+    useradd --uid 1001 --gid nodejs --shell /bin/bash nodejs
 
 USER nodejs
 

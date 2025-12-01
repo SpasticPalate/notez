@@ -16,6 +16,10 @@ COPY . .
 ARG APP_VERSION=0.28.3
 ENV VITE_APP_VERSION=$APP_VERSION
 
+# Set API URL at build time
+ARG VITE_API_URL=http://localhost:3000
+ENV VITE_API_URL=$VITE_API_URL
+
 # Build the application
 RUN npm run build
 
@@ -25,8 +29,8 @@ FROM nginx:alpine
 # Copy built files to nginx
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx configuration template (will be processed by envsubst)
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 
 # Create non-root user
 RUN addgroup -g 1001 -S nginx-user && \
@@ -35,8 +39,12 @@ RUN addgroup -g 1001 -S nginx-user && \
     chown -R nginx-user:nginx-user /var/cache/nginx && \
     chown -R nginx-user:nginx-user /var/log/nginx && \
     chown -R nginx-user:nginx-user /etc/nginx/conf.d && \
+    chown -R nginx-user:nginx-user /etc/nginx/templates && \
     touch /var/run/nginx.pid && \
     chown -R nginx-user:nginx-user /var/run/nginx.pid
+
+# Default API backend URL (can be overridden at runtime)
+ENV API_BACKEND_URL=http://localhost:3000
 
 USER nginx-user
 
