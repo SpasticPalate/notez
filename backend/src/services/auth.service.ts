@@ -94,13 +94,20 @@ export async function setupFirstUser(data: SetupInput) {
 }
 
 /**
- * Login with username or email
+ * Login with username or email (case-insensitive for email)
  */
 export async function login(data: LoginInput) {
-  // Find user by username or email
+  // Normalize the input for case-insensitive comparison
+  const normalizedInput = data.usernameOrEmail.toLowerCase();
+
+  // Find user by username (case-sensitive) or email (case-insensitive)
+  // PostgreSQL's ILIKE is case-insensitive, but we use raw query for email
   const user = await prisma.user.findFirst({
     where: {
-      OR: [{ username: data.usernameOrEmail }, { email: data.usernameOrEmail }],
+      OR: [
+        { username: data.usernameOrEmail }, // Username is case-sensitive
+        { email: { equals: normalizedInput, mode: 'insensitive' } }, // Email is case-insensitive
+      ],
     },
   });
 

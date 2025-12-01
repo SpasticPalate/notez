@@ -70,8 +70,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await authApi.me();
       setUser(response.data.user);
-    } catch (error) {
-      // Token invalid, clear it
+    } catch {
+      // Token invalid or refresh failed - silently clear and redirect to login
+      // Don't propagate error messages like "Refresh token not found" to UI
       localStorage.removeItem('accessToken');
       setUser(null);
     } finally {

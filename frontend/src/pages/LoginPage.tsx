@@ -10,6 +10,16 @@ export function LoginPage() {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
+  // Clear any stale tokens when landing on login page
+  // This prevents issues where localStorage has a token but cookies are missing
+  useEffect(() => {
+    // Only clear if we're on login page and not authenticated
+    // (authenticated users are redirected away by the effect below)
+    if (!isAuthenticated) {
+      localStorage.removeItem('accessToken');
+    }
+  }, []); // Run once on mount
+
   // Navigate after authentication state changes
   useEffect(() => {
     if (isAuthenticated) {
@@ -26,7 +36,17 @@ export function LoginPage() {
       await login(usernameOrEmail, password);
       // Navigation is handled by useEffect after isAuthenticated updates
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      // Get the error message from the response, or provide a friendly fallback
+      const errorMessage = err.response?.data?.message || 'Login failed. Please try again.';
+
+      // Map technical errors to user-friendly messages
+      if (errorMessage.includes('Invalid credentials')) {
+        setError('Invalid username/email or password. Please try again.');
+      } else if (errorMessage.includes('deactivated')) {
+        setError('This account has been deactivated. Please contact an administrator.');
+      } else {
+        setError(errorMessage);
+      }
       setIsLoading(false);
     }
   };
