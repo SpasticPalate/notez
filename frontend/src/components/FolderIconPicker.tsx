@@ -140,9 +140,9 @@ export function FolderIconPicker({ selectedIcon, onSelectIcon, disabled }: Folde
             onClick={() => setIsOpen(false)}
           />
 
-          {/* Dropdown */}
-          <div className="absolute z-20 mt-1 left-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2 w-64">
-            <div className="grid grid-cols-7 gap-1">
+          {/* Dropdown - w-56 (224px) fits within 256px sidebar with padding */}
+          <div className="absolute z-20 mt-1 left-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2 w-56">
+            <div className="grid grid-cols-6 gap-1">
               {FOLDER_ICONS.map((iconName) => {
                 const IconComponent = FOLDER_ICON_MAP[iconName];
                 const isSelected = iconName === selectedIcon;
