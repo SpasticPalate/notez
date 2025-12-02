@@ -6,6 +6,7 @@ import {
   AISuggestTagsOptions,
   AIProviderConnectionError,
   AIProviderRateLimitError,
+  AIModelNotFoundError,
   AIServiceError,
 } from '../types.js';
 
@@ -179,13 +180,14 @@ export class OpenAIProvider implements AIProvider {
       return gptModels.sort((a, b) => b.id.localeCompare(a.id));
     } catch (error: any) {
       // If fetching fails, return hardcoded list as fallback
+      // Pricing (Dec 2025): GPT-4o-mini $0.15/$0.60, GPT-4o $2.50/$10, GPT-4 $30/$60 per M tokens
       console.warn('Failed to fetch OpenAI models, using fallback list:', error.message);
       return [
-        { id: 'gpt-4o', name: 'GPT-4o', description: 'Most capable GPT-4 model' },
-        { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Fast and cost-effective' },
-        { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', description: 'Fast GPT-4 variant' },
-        { id: 'gpt-4', name: 'GPT-4', description: 'Standard GPT-4' },
-        { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', description: 'Fast and economical' },
+        { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Best value - fast and cost-effective' },
+        { id: 'gpt-4o', name: 'GPT-4o', description: 'Most capable multimodal model' },
+        { id: 'gpt-4o-2024-11-20', name: 'GPT-4o (Nov 2024)', description: 'Latest GPT-4o snapshot' },
+        { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', description: 'Previous generation turbo' },
+        { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', description: 'Legacy economical option' },
       ];
     }
   }
@@ -199,6 +201,13 @@ export class OpenAIProvider implements AIProvider {
     // Check for authentication errors
     if (error.status === 401) {
       throw new AIProviderConnectionError('openai', error);
+    }
+
+    // Check for model not found errors (404 with specific message)
+    if (error.status === 404 || error.code === 'model_not_found' ||
+        (error.message && error.message.toLowerCase().includes('model') &&
+         (error.message.toLowerCase().includes('not found') || error.message.toLowerCase().includes('does not exist')))) {
+      throw new AIModelNotFoundError('openai', this.model, error);
     }
 
     // Check for other API errors

@@ -17,6 +17,7 @@ import { tasksRoutes } from './routes/tasks.routes.js';
 import { aiRoutes } from './routes/ai.routes.js';
 import { searchRoutes } from './routes/search.routes.js';
 import { imagesRoutes } from './routes/images.routes.js';
+import { profileRoutes, profilePublicRoutes } from './routes/profile.routes.js';
 import { prisma, disconnectPrisma } from './lib/db.js';
 import { storageService } from './services/storage.service.js';
 
@@ -84,6 +85,8 @@ await fastify.register(tasksRoutes, { prefix: '/api' });
 await fastify.register(aiRoutes, { prefix: '/api/ai' });
 await fastify.register(searchRoutes, { prefix: '/api/search' });
 await fastify.register(imagesRoutes, { prefix: '/api' });
+await fastify.register(profilePublicRoutes, { prefix: '/api' }); // Public routes (no auth)
+await fastify.register(profileRoutes, { prefix: '/api' }); // Protected routes (auth required)
 
 // Serve frontend static files (in production)
 // Get the directory of the current module

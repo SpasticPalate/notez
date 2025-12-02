@@ -1,26 +1,34 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { FolderSidebar, type FolderSidebarHandle } from '../components/FolderSidebar';
 import { NoteList, type NoteListHandle } from '../components/NoteList';
 import { NoteEditor } from '../components/NoteEditor';
 import TaskList from '../components/TaskList';
-import { SearchBar } from '../components/SearchBar';
-import { ThemeToggle } from '../components/ThemeToggle';
-import { useAuth } from '../contexts/AuthContext';
-import { Settings, Menu, FileText, Edit3, CheckSquare } from 'lucide-react';
+import { AppHeader } from '../components/AppHeader';
+import { Menu, FileText, Edit3, CheckSquare } from 'lucide-react';
+
+// localStorage key for sidebar state
+const SIDEBAR_COLLAPSED_KEY = 'notez-sidebar-collapsed';
 
 export function EditorPage() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedView, setSelectedView] = useState<'notes' | 'tasks'>('notes');
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    // Initialize from localStorage
+    const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+    return saved === 'true';
+  });
   const [mobileView, setMobileView] = useState<'sidebar' | 'list' | 'editor'>('list');
   const noteListRef = useRef<NoteListHandle>(null);
   const sidebarRef = useRef<FolderSidebarHandle>(null);
+
+  // Persist sidebar collapsed state
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   // Handle URL query parameter for note selection (from search)
   useEffect(() => {
@@ -75,42 +83,7 @@ export function EditorPage() {
   return (
     <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
       {/* Top Navigation */}
-      <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center space-x-2 md:space-x-4">
-          <img src="/icon-192x192.png" alt="Notez" className="w-8 h-8" />
-          <h1 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">Notez</h1>
-        </div>
-        <div className="flex items-center space-x-2 md:space-x-4">
-          <div className="hidden sm:block">
-            <SearchBar />
-          </div>
-          <ThemeToggle />
-          <button
-            onClick={() => navigate('/settings')}
-            className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
-            title="Settings"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
-          {user?.role === 'admin' && (
-            <a
-              href="/admin"
-              className="hidden md:inline-block px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 border border-blue-600 dark:border-blue-400 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20"
-            >
-              Admin Panel
-            </a>
-          )}
-          <span className="hidden md:inline text-sm text-gray-600 dark:text-gray-400">
-            {user?.username}
-          </span>
-          <button
-            onClick={logout}
-            className="px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
-          >
-            Logout
-          </button>
-        </div>
-      </nav>
+      <AppHeader />
 
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden pb-20 xl:pb-0 ">

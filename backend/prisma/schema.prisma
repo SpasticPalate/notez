@@ -24,6 +24,7 @@ model User {
   role               String    @default("user") @db.VarChar(20) // 'admin' or 'user'
   isActive           Boolean   @default(true) @map("is_active")
   mustChangePassword Boolean   @default(false) @map("must_change_password")
+  avatarUrl          String?   @map("avatar_url") @db.VarChar(255)
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 

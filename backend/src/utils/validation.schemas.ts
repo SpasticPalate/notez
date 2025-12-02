@@ -121,6 +121,10 @@ export const aiConfigSchema = z.object({
   model: z.string().optional(),
 });
 
+export const aiModelUpdateSchema = z.object({
+  model: z.string().min(1, 'Model is required'),
+});
+
 export const aiSummarizeSchema = z.object({
   content: z.string().min(1, 'Content is required'),
   maxLength: z.number().int().min(10).max(1000).default(100).optional(),
@@ -226,6 +230,7 @@ export type ListNotesQuery = z.infer<typeof listNotesQuerySchema>;
 export type CreateFolderInput = z.infer<typeof createFolderSchema>;
 export type UpdateFolderInput = z.infer<typeof updateFolderSchema>;
 export type AIConfigInput = z.infer<typeof aiConfigSchema>;
+export type AIModelUpdateInput = z.infer<typeof aiModelUpdateSchema>;
 export type AISummarizeInput = z.infer<typeof aiSummarizeSchema>;
 export type AISuggestTitleInput = z.infer<typeof aiSuggestTitleSchema>;
 export type AISuggestTagsInput = z.infer<typeof aiSuggestTagsSchema>;

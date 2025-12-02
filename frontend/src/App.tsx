@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ConfirmProvider } from './components/ConfirmDialog';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoginPage } from './pages/LoginPage';
 import { SetupPage } from './pages/SetupPage';
@@ -7,8 +8,7 @@ import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { EditorPage } from './pages/EditorPage';
-import { AdminPage } from './pages/AdminPage';
-import { SettingsPage } from './pages/SettingsPage';
+import { SettingsHub } from './pages/SettingsHub';
 
 function AppRoutes() {
   const { setupNeeded, isLoading, user } = useAuth();
@@ -51,18 +51,13 @@ function AppRoutes() {
         path="/settings"
         element={
           <ProtectedRoute>
-            <SettingsPage />
+            <SettingsHub />
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute>
-            <AdminPage />
-          </ProtectedRoute>
-        }
-      />
+      {/* Legacy routes redirect to settings hub with appropriate section */}
+      <Route path="/profile" element={<Navigate to="/settings#profile" replace />} />
+      <Route path="/admin" element={<Navigate to="/settings#admin" replace />} />
       <Route
         path="/"
         element={
@@ -80,7 +75,9 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <ConfirmProvider>
+          <AppRoutes />
+        </ConfirmProvider>
       </AuthProvider>
     </BrowserRouter>
   );

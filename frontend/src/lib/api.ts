@@ -184,15 +184,22 @@ export const tagsApi = {
 };
 
 export const aiApi = {
-  // AI Settings (Admin only)
+  // AI Settings
   getSettings: () => api.get('/api/ai/settings'),
 
   saveSettings: (data: { provider: 'anthropic' | 'openai' | 'gemini'; apiKey: string; model?: string }) =>
     api.put('/api/ai/settings', data),
 
+  updateModel: (model: string) =>
+    api.patch('/api/ai/settings', { model }),
+
   testConnection: (data: { provider: 'anthropic' | 'openai' | 'gemini'; apiKey: string; model?: string }) =>
     api.post('/api/ai/test-connection', data),
 
+  // List models using stored API key (no key required)
+  getModels: () => api.get('/api/ai/models'),
+
+  // List models with provided API key (for initial setup/key change)
   listModels: (data: { provider: 'anthropic' | 'openai' | 'gemini'; apiKey: string; model?: string }) =>
     api.post('/api/ai/list-models', data),
 
@@ -210,6 +217,22 @@ export const aiApi = {
 export const searchApi = {
   search: (params: { q: string; folderId?: string; limit?: number; offset?: number }) =>
     api.get('/api/search', { params }),
+};
+
+export const profileApi = {
+  getProfile: () => api.get('/api/profile/me'),
+
+  uploadAvatar: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/api/profile/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  deleteAvatar: () => api.delete('/api/profile/avatar'),
+
+  getAvatarUrl: (userId: string) => `/api/profile/avatar/${userId}`,
 };
 
 export const tasksApi = {

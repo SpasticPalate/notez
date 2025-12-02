@@ -5,6 +5,7 @@ import type { Task, TaskStats } from '../types';
 import TaskItem from './TaskItem';
 import TaskForm from './TaskForm';
 import TaskImportDialog from './TaskImportDialog';
+import { useConfirm } from './ConfirmDialog';
 
 interface TaskListProps {
   onNoteClick?: (noteId: string) => void;
@@ -16,6 +17,7 @@ interface Folder {
 }
 
 export default function TaskList({ onNoteClick }: TaskListProps) {
+  const confirm = useConfirm();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [stats, setStats] = useState<TaskStats | null>(null);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -101,7 +103,13 @@ export default function TaskList({ onNoteClick }: TaskListProps) {
   };
 
   const handleDelete = async (taskId: string) => {
-    if (!confirm('Are you sure you want to delete this task?')) return;
+    const confirmed = await confirm({
+      title: 'Delete Task',
+      message: 'Are you sure you want to delete this task?',
+      confirmText: 'Delete',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
 
     try {
       await tasksApi.delete(taskId);

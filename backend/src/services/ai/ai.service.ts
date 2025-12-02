@@ -90,6 +90,26 @@ export class AIService {
   }
 
   /**
+   * Update only the model for a user's AI configuration
+   * @param userId User ID
+   * @param model New model to use
+   */
+  async updateUserModel(userId: string, model: string): Promise<void> {
+    const existing = await prisma.userAISettings.findUnique({
+      where: { userId },
+    });
+
+    if (!existing) {
+      throw new AIProviderNotConfiguredError();
+    }
+
+    await prisma.userAISettings.update({
+      where: { userId },
+      data: { model },
+    });
+  }
+
+  /**
    * Delete AI configuration for a specific user
    * @param userId User ID
    */
@@ -120,6 +140,21 @@ export class AIService {
       return provider.listModels();
     }
     throw new Error('Provider does not support listing models');
+  }
+
+  /**
+   * List available models for a user using their stored API key
+   * @param userId User ID
+   * @returns Array of available models with their details
+   * @throws AIProviderNotConfiguredError if user has not configured AI
+   */
+  async listModelsForUser(userId: string): Promise<Array<{ id: string; name: string; description?: string }>> {
+    const config = await this.getUserConfiguration(userId);
+    if (!config) {
+      throw new AIProviderNotConfiguredError();
+    }
+
+    return this.listModels(config);
   }
 
   /**

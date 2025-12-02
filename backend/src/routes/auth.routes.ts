@@ -9,6 +9,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
 } from '../utils/validation.schemas.js';
+import { prisma } from '../lib/db.js';
 
 export async function authRoutes(fastify: FastifyInstance) {
   // Check if setup is needed
@@ -266,11 +267,32 @@ export async function authRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Fetch full user details from database
+        const user = await prisma.user.findUnique({
+          where: { id: request.user.userId },
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+            mustChangePassword: true,
+          },
+        });
+
+        if (!user) {
+          return reply.status(404).send({
+            error: 'Not Found',
+            message: 'User not found',
+          });
+        }
+
         return {
           user: {
-            userId: request.user.userId,
-            username: request.user.username,
-            role: request.user.role,
+            userId: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            mustChangePassword: user.mustChangePassword,
           },
         };
       } catch (error) {
@@ -327,17 +349,13 @@ export async function authRoutes(fastify: FastifyInstance) {
       } catch (error) {
         fastify.log.error(error);
 
-        if (error instanceof Error) {
-          if (
-            error.message.includes('Invalid') ||
-            error.message.includes('expired') ||
-            error.message.includes('used')
-          ) {
-            return reply.status(400).send({
-              error: 'Bad Request',
-              message: error.message,
-            });
-          }
+        // Return generic error message for all token-related errors
+        // to prevent information leakage about token state
+        if (error instanceof Error && error.message.includes('reset token')) {
+          return reply.status(400).send({
+            error: 'Bad Request',
+            message: 'Invalid or expired reset token',
+          });
         }
 
         return reply.status(500).send({
@@ -365,7 +383,11 @@ export async function authRoutes(fastify: FastifyInstance) {
       return { valid: isValid };
     } catch (error) {
       fastify.log.error(error);
-      return { valid: false };
+      return reply.status(500).send({
+        error: 'Internal Server Error',
+        message: 'Failed to validate token',
+        valid: false,
+      });
     }
   });
 }

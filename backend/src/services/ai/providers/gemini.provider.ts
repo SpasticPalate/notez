@@ -6,6 +6,7 @@ import {
   AISuggestTagsOptions,
   AIProviderConnectionError,
   AIProviderRateLimitError,
+  AIModelNotFoundError,
   AIServiceError,
 } from '../types.js';
 
@@ -127,11 +128,14 @@ export class GeminiProvider implements AIProvider {
   async listModels(): Promise<Array<{ id: string; name: string; description?: string }>> {
     // Google Gemini doesn't have a public list models API endpoint
     // Return hardcoded list of current models
+    // Pricing (Dec 2025): Flash-Lite $0.075/$0.30, Flash $0.15/$0.60, Pro $1.25/$10 per M tokens
     return [
-      { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash (Experimental)', description: 'Latest experimental model' },
-      { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Most capable model' },
-      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Fast and efficient' },
-      { id: 'gemini-1.0-pro', name: 'Gemini 1.0 Pro', description: 'Previous generation' },
+      { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite', description: 'Best value - fastest and cheapest' },
+      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Fast with reasoning capability' },
+      { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: 'Balanced speed and capability' },
+      { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: 'Most capable model' },
+      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Previous generation flash' },
+      { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Previous generation pro' },
     ];
   }
 
@@ -148,6 +152,14 @@ export class GeminiProvider implements AIProvider {
       error.message?.includes('UNAUTHENTICATED')
     ) {
       throw new AIProviderConnectionError('gemini', error);
+    }
+
+    // Check for model not found errors
+    if (error.message?.includes('404') ||
+        error.message?.includes('NOT_FOUND') ||
+        (error.message?.toLowerCase()?.includes('model') &&
+         (error.message?.toLowerCase()?.includes('not found') || error.message?.toLowerCase()?.includes('does not exist')))) {
+      throw new AIModelNotFoundError('gemini', this.model, error);
     }
 
     // Check for other API errors

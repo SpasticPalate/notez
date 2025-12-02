@@ -93,3 +93,10 @@ export class AIProviderRateLimitError extends AIServiceError {
     this.name = 'AIProviderRateLimitError';
   }
 }
+
+export class AIModelNotFoundError extends AIServiceError {
+  constructor(provider: AIProviderType, model: string, originalError?: unknown) {
+    super(`Model '${model}' not found for ${provider}. It may have been deprecated.`, provider, originalError);
+    this.name = 'AIModelNotFoundError';
+  }
+}

@@ -4,6 +4,8 @@ import { ChevronLeft, ChevronRight, Folder, FolderPlus, Tag, ChevronDown, Chevro
 import { EditableListItem } from './EditableListItem';
 import { FolderIcon, FolderIconPicker } from './FolderIconPicker';
 import { WhatsNewModal, hasNewVersion } from './WhatsNewModal';
+import { useConfirm } from './ConfirmDialog';
+import { Popover } from './Popover';
 
 interface FolderData {
   id: string;
@@ -49,6 +51,7 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
   onToggleCollapse,
   onNoteMoved,
 }, ref) => {
+  const confirm = useConfirm();
   const [folders, setFolders] = useState<FolderData[]>([]);
   const [tags, setTags] = useState<TagData[]>([]);
   const [unfiledCount, setUnfiledCount] = useState(0);
@@ -183,9 +186,13 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
   };
 
   const handleDeleteFolder = async (folderId: string, folderName: string) => {
-    if (!confirm(`Delete folder "${folderName}"? Notes in this folder will be moved to unfiled.`)) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Delete Folder',
+      message: `Delete folder "${folderName}"? Notes in this folder will be moved to unfiled.`,
+      confirmText: 'Delete',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
 
     // Optimistic update
     const originalFolders = folders;
@@ -219,9 +226,13 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
   };
 
   const handleDeleteTag = async (tagId: string, tagName: string) => {
-    if (!confirm(`Delete tag "${tagName}"? This will remove it from all notes.`)) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Delete Tag',
+      message: `Delete tag "${tagName}"? This will remove it from all notes.`,
+      confirmText: 'Delete',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
 
     // Optimistic update
     const originalTags = tags;
@@ -259,14 +270,199 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
 
   if (collapsed) {
     return (
-      <div className="w-12 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col items-center py-4">
-        <button
-          onClick={onToggleCollapse}
-          className="p-2 hover:bg-gray-100 dark:bg-gray-700 rounded-md"
-          title="Expand sidebar"
-        >
-          <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400 dark:text-gray-500" />
-        </button>
+      <div className="w-12 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full">
+        {/* Expand button */}
+        <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={onToggleCollapse}
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md w-full flex justify-center"
+            title="Expand sidebar"
+          >
+            <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+          </button>
+        </div>
+
+        {/* Scrollable icons */}
+        <div className="flex-1 overflow-y-auto py-2 space-y-1">
+          {/* All Notes */}
+          <Popover
+            trigger={
+              <button
+                onClick={() => {
+                  onSelectView('notes');
+                  onSelectFolder(null);
+                  onSelectTag(null);
+                }}
+                className={`w-full p-2 flex justify-center hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                  selectedView === 'notes' && selectedFolderId === null && selectedTagId === null
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-600'
+                    : ''
+                }`}
+              >
+                <Folder className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              </button>
+            }
+          >
+            <div className="font-medium text-gray-900 dark:text-white">All Notes</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">View all notes</div>
+          </Popover>
+
+          {/* Tasks */}
+          <Popover
+            trigger={
+              <button
+                onClick={() => onSelectView('tasks')}
+                className={`w-full p-2 flex justify-center hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                  selectedView === 'tasks'
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-600'
+                    : ''
+                }`}
+              >
+                <CheckSquare className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              </button>
+            }
+          >
+            <div className="font-medium text-gray-900 dark:text-white">Tasks</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">View all tasks</div>
+          </Popover>
+
+          {/* Unfiled */}
+          <Popover
+            trigger={
+              <button
+                onClick={() => {
+                  onSelectView('notes');
+                  onSelectFolder('unfiled');
+                  onSelectTag(null);
+                }}
+                className={`w-full p-2 flex justify-center hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                  selectedFolderId === 'unfiled'
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-600'
+                    : ''
+                }`}
+              >
+                <FileQuestion className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              </button>
+            }
+          >
+            <div className="font-medium text-gray-900 dark:text-white">Unfiled</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{unfiledCount} notes</div>
+          </Popover>
+
+          {/* Divider */}
+          <div className="border-t border-gray-200 dark:border-gray-700 my-2 mx-2" />
+
+          {/* Folders */}
+          {folders.map((folder) => (
+            <Popover
+              key={folder.id}
+              trigger={
+                <button
+                  onClick={() => {
+                    onSelectView('notes');
+                    onSelectFolder(folder.id);
+                    onSelectTag(null);
+                  }}
+                  className={`w-full p-2 flex justify-center hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                    selectedFolderId === folder.id
+                      ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-600'
+                      : ''
+                  }`}
+                >
+                  <FolderIcon icon={folder.icon} className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                </button>
+              }
+            >
+              <div className="font-medium text-gray-900 dark:text-white">{folder.name}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{folder.noteCount} notes</div>
+            </Popover>
+          ))}
+
+          {/* Tags divider */}
+          {tags.length > 0 && (
+            <div className="border-t border-gray-200 dark:border-gray-700 my-2 mx-2" />
+          )}
+
+          {/* Tags */}
+          {tags.map((tag) => (
+            <Popover
+              key={tag.id}
+              trigger={
+                <button
+                  onClick={() => {
+                    onSelectView('notes');
+                    onSelectTag(tag.id);
+                    onSelectFolder(null);
+                  }}
+                  className={`w-full p-2 flex justify-center hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                    selectedTagId === tag.id
+                      ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-600'
+                      : ''
+                  }`}
+                >
+                  <Tag className="w-4 h-4 text-green-600 dark:text-green-500" />
+                </button>
+              }
+            >
+              <div className="font-medium text-gray-900 dark:text-white">{tag.name}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{tag.noteCount} notes</div>
+            </Popover>
+          ))}
+
+          {/* Trash */}
+          <div className="border-t border-gray-200 dark:border-gray-700 my-2 mx-2" />
+          <Popover
+            trigger={
+              <button
+                onClick={() => {
+                  onSelectView('notes');
+                  onSelectFolder('trash');
+                  onSelectTag(null);
+                }}
+                className={`w-full p-2 flex justify-center hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                  selectedFolderId === 'trash'
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-600'
+                    : ''
+                }`}
+              >
+                <Trash2 className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              </button>
+            }
+          >
+            <div className="font-medium text-gray-900 dark:text-white">Trash</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{deletedCount} notes</div>
+          </Popover>
+        </div>
+
+        {/* What's New indicator */}
+        {showNewBadge && (
+          <div className="p-2 border-t border-gray-200 dark:border-gray-700">
+            <Popover
+              trigger={
+                <button
+                  onClick={() => {
+                    setShowWhatsNew(true);
+                    setShowNewBadge(false);
+                    localStorage.setItem('notez-last-seen-version', currentVersion);
+                  }}
+                  className="w-full p-2 flex justify-center hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                >
+                  <Sparkles className="w-5 h-5 text-amber-500" />
+                </button>
+              }
+            >
+              <div className="font-medium text-gray-900 dark:text-white">What's New</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">See latest updates</div>
+            </Popover>
+          </div>
+        )}
+
+        {/* What's New Modal */}
+        <WhatsNewModal
+          isOpen={showWhatsNew}
+          onClose={() => setShowWhatsNew(false)}
+          currentVersion={currentVersion}
+        />
       </div>
     );
   }
@@ -419,28 +615,6 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
           )}
         </button>
 
-        {/* Trash */}
-        <button
-          onClick={() => {
-            onSelectView('notes');
-            onSelectFolder('trash');
-            onSelectTag(null);
-          }}
-          className={`w-full px-4 py-2.5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 ${
-            selectedFolderId === 'trash' ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600' : ''
-          }`}
-        >
-          <div className="flex items-center space-x-3">
-            <Trash2 className="w-5 h-5 text-gray-400 dark:text-gray-500" />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Trash</span>
-          </div>
-          {deletedCount > 0 && (
-            <span className="px-2 py-0.5 text-xs font-medium bg-red-200 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full">
-              {deletedCount}
-            </span>
-          )}
-        </button>
-
         {/* Folder Items */}
         {isLoading ? (
           <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Loading...</div>
@@ -518,6 +692,30 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
               )}
             </div>
           )}
+        </div>
+
+        {/* Trash - at bottom */}
+        <div className="mt-4 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => {
+              onSelectView('notes');
+              onSelectFolder('trash');
+              onSelectTag(null);
+            }}
+            className={`w-full px-4 py-2.5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 ${
+              selectedFolderId === 'trash' ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600' : ''
+            }`}
+          >
+            <div className="flex items-center space-x-3">
+              <Trash2 className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Trash</span>
+            </div>
+            {deletedCount > 0 && (
+              <span className="px-2 py-0.5 text-xs font-medium bg-red-200 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full">
+                {deletedCount}
+              </span>
+            )}
+          </button>
         </div>
       </div>
 

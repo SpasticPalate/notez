@@ -4,10 +4,12 @@ import {
   AIProviderNotConfiguredError,
   AIProviderConnectionError,
   AIProviderRateLimitError,
+  AIModelNotFoundError,
   AIServiceError,
 } from '../services/ai/types.js';
 import {
   aiConfigSchema,
+  aiModelUpdateSchema,
   aiSummarizeSchema,
   aiSuggestTitleSchema,
   aiSuggestTagsSchema,
@@ -15,6 +17,7 @@ import {
   AISuggestTitleInput,
   AISuggestTagsInput,
   AIConfigInput,
+  AIModelUpdateInput,
 } from '../utils/validation.schemas.js';
 import { validateBody } from '../middleware/validate.middleware.js';
 import { authenticateToken } from '../middleware/auth.middleware.js';
@@ -103,6 +106,66 @@ export async function aiRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  /**
+   * PATCH /api/ai/settings
+   * Update only the model (uses stored API key)
+   */
+  fastify.patch<{ Body: AIModelUpdateInput }>(
+    '/settings',
+    {
+      preHandler: [validateBody(aiModelUpdateSchema)],
+    },
+    async (request, reply) => {
+      try {
+        const userId = request.user!.userId;
+        const { model } = request.body;
+
+        await aiService.updateUserModel(userId, model);
+
+        reply.send({ message: 'Model updated successfully' });
+      } catch (error: any) {
+        if (error instanceof AIProviderNotConfiguredError) {
+          return reply.status(400).send({ message: 'AI is not configured. Please set up your API key first.' });
+        }
+
+        fastify.log.error(error);
+        reply.status(500).send({ message: 'Failed to update model' });
+      }
+    }
+  );
+
+  /**
+   * GET /api/ai/models
+   * List available models using stored API key
+   */
+  fastify.get('/models', async (request, reply) => {
+    try {
+      const userId = request.user!.userId;
+      const models = await aiService.listModelsForUser(userId);
+
+      reply.send({ success: true, models });
+    } catch (error: any) {
+      if (error instanceof AIProviderNotConfiguredError) {
+        return reply.status(400).send({ success: false, message: 'AI is not configured', models: [] });
+      }
+
+      if (error instanceof AIProviderConnectionError) {
+        return reply.status(400).send({ success: false, message: 'Failed to connect to AI provider', models: [] });
+      }
+
+      if (error instanceof AIProviderRateLimitError) {
+        return reply.status(429).send({ success: false, message: 'Rate limit exceeded', models: [] });
+      }
+
+      if (error instanceof AIServiceError) {
+        return reply.status(400).send({ success: false, message: error.message, models: [] });
+      }
+
+      fastify.log.error(error);
+      reply.status(500).send({ success: false, message: 'Failed to list models', models: [] });
+    }
+  });
 
   /**
    * POST /api/ai/test-connection
@@ -211,6 +274,14 @@ export async function aiRoutes(fastify: FastifyInstance) {
           return reply.status(429).send({ message: 'Rate limit exceeded. Please try again later.' });
         }
 
+        if (error instanceof AIModelNotFoundError) {
+          return reply.status(400).send({
+            message: error.message,
+            code: 'MODEL_NOT_FOUND',
+            suggestion: 'Your configured model may have been deprecated. Please update your AI settings.',
+          });
+        }
+
         if (error instanceof AIServiceError) {
           return reply.status(500).send({ message: `AI error: ${error.message}` });
         }
@@ -252,6 +323,14 @@ export async function aiRoutes(fastify: FastifyInstance) {
 
         if (error instanceof AIProviderRateLimitError) {
           return reply.status(429).send({ message: 'Rate limit exceeded. Please try again later.' });
+        }
+
+        if (error instanceof AIModelNotFoundError) {
+          return reply.status(400).send({
+            message: error.message,
+            code: 'MODEL_NOT_FOUND',
+            suggestion: 'Your configured model may have been deprecated. Please update your AI settings.',
+          });
         }
 
         if (error instanceof AIServiceError) {
@@ -307,6 +386,14 @@ export async function aiRoutes(fastify: FastifyInstance) {
 
         if (error instanceof AIProviderRateLimitError) {
           return reply.status(429).send({ message: 'Rate limit exceeded. Please try again later.' });
+        }
+
+        if (error instanceof AIModelNotFoundError) {
+          return reply.status(400).send({
+            message: error.message,
+            code: 'MODEL_NOT_FOUND',
+            suggestion: 'Your configured model may have been deprecated. Please update your AI settings.',
+          });
         }
 
         if (error instanceof AIServiceError) {

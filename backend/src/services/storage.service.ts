@@ -194,6 +194,72 @@ class StorageService {
       await client.removeObjects(this.bucket, objectsToDelete);
     }
   }
+
+  /**
+   * Upload user avatar - stored in avatars/ folder
+   * Avatars are resized to 256x256 and converted to JPEG
+   */
+  async uploadAvatar(
+    buffer: Buffer,
+    userId: string
+  ): Promise<{ url: string }> {
+    const client = this.getClient();
+
+    // Process avatar - resize to 256x256 square, convert to JPEG
+    const processed = await sharp(buffer)
+      .resize(256, 256, { fit: 'cover' })
+      .jpeg({ quality: 90 })
+      .toBuffer();
+
+    const key = `avatars/${userId}.jpg`;
+
+    await client.putObject(this.bucket, key, processed, processed.length, {
+      'Content-Type': 'image/jpeg',
+    });
+
+    return {
+      url: `/api/profile/avatar/${userId}`,
+    };
+  }
+
+  /**
+   * Get user avatar
+   */
+  async getAvatar(userId: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
+    const client = this.getClient();
+    const key = `avatars/${userId}.jpg`;
+
+    try {
+      const stream = await client.getObject(this.bucket, key);
+      const chunks: Buffer[] = [];
+
+      for await (const chunk of stream) {
+        chunks.push(chunk as Buffer);
+      }
+
+      return {
+        buffer: Buffer.concat(chunks),
+        mimeType: 'image/jpeg',
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Delete user avatar
+   */
+  async deleteAvatar(userId: string): Promise<boolean> {
+    const client = this.getClient();
+    const key = `avatars/${userId}.jpg`;
+
+    try {
+      await client.removeObject(this.bucket, key);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 export const storageService = new StorageService();

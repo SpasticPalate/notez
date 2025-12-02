@@ -417,23 +417,15 @@ export async function resetPassword(token: string, newPassword: string): Promise
       include: { user: true },
     });
 
-    if (!resetToken) {
-      throw new Error('Invalid reset token');
-    }
-
-    // Check if token has been used
-    if (resetToken.usedAt) {
-      throw new Error('Reset token has already been used');
-    }
-
-    // Check if token has expired
-    if (resetToken.expiresAt < new Date()) {
-      throw new Error('Reset token has expired');
-    }
-
-    // Check if user is active
-    if (!resetToken.user.isActive) {
-      throw new Error('Account is deactivated');
+    // Combine all token validation checks to prevent timing attacks
+    // All invalid states return the same generic error message
+    if (
+      !resetToken ||
+      resetToken.usedAt ||
+      resetToken.expiresAt < new Date() ||
+      !resetToken.user.isActive
+    ) {
+      throw new Error('Invalid or expired reset token');
     }
 
     // Update password

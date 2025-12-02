@@ -7,6 +7,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-rc.1] - 2025-12-02
+
+**MVP Feature Complete - Release Candidate**
+
+This release marks MVP completion per the original specification. All core features are implemented and the application is entering the validation phase for stability, security, and production readiness.
+
+### Added
+
+- **Self-Service Password Reset**: Forgot password flow with email-based reset tokens via Resend
+- **Unified Settings Hub**: Consolidated Profile, AI Settings, and Admin Panel into single page with sidebar navigation
+- **Shared App Header**: Consistent header with logo, search, theme toggle, and user dropdown across all pages
+- **User Avatar Dropdown**: Click avatar to access Profile, Settings, Admin Panel (if admin), and Logout
+- **Enhanced Collapsed Sidebar**: Folder/tag icons with hover popovers showing name and note count
+- **Styled Confirm Dialogs**: Replaced native browser confirm() with themed React dialogs
+- **Sidebar State Persistence**: Collapsed/expanded state saved to localStorage
+
+### Changed
+
+- Settings navigation uses URL hash for sections (`/settings#profile`, `/settings#ai`, `/settings#admin`)
+- Trash moved to bottom of folder sidebar in both expanded and collapsed views
+- Legacy routes `/profile` and `/admin` redirect to Settings Hub sections
+
+### Fixed
+
+- Trash folder 400 error when clicking trash icon in collapsed sidebar
+- Folder icon picker overflow when editing folders (reduced width from 256px to 224px)
+
+### Technical
+
+- New `AppHeader` component for shared navigation
+- New `SettingsHub` page with section-based routing
+- New `AdminPanel` component extracted for reuse
+- New `UserDropdown` component with avatar and menu
+- New `ConfirmDialog` component with `ConfirmProvider` context
+- Password reset tokens stored in database with 1-hour expiration
+- Resend email integration for transactional emails
+
+### MVP Status
+
+All success criteria from the MVP specification have been met:
+- ✅ Deploy to server via Docker
+- ✅ Create admin account on first boot
+- ✅ Login as admin or regular user
+- ✅ Create, edit, delete notes with auto-save
+- ✅ Organize notes in folders
+- ✅ Tag notes
+- ✅ Search notes
+- ✅ AI summarize, suggest titles, suggest tags
+- ✅ Create new users as admin
+- ✅ Secure (JWT, encrypted secrets)
+- ✅ CI/CD pipeline builds and pushes to ghcr.io
+
+## [0.32.0] - 2025-12-02
+
+### Added
+
+- **User Avatar Upload**: Upload, change, or delete profile avatars (JPEG, PNG, GIF, WebP up to 5MB)
+- **Dynamic AI Model Fetching**: Models now fetched from AI providers instead of static hardcoded lists
+- **Model Deprecation Handling**: Graceful fallback when AI models are deprecated or removed
+- **Profile Settings Tab**: New Profile section in Settings with user info and avatar management
+- **PATCH Endpoint for AI Model**: Change AI model without re-entering API key
+
+### Fixed
+
+- **AI Config Bug**: Users can now change AI model without re-entering their API key
+- Model selection persists correctly after configuration changes
+
+### Technical
+
+- Added `avatarUrl` field to User model with database migration
+- New `/api/profile/*` endpoints for profile and avatar management
+- Avatar images resized to 256x256 and stored as JPEG in MinIO
+- Added `AIModelNotFoundError` for provider-specific error handling
+
 ## [0.31.1] - 2025-01-02
 
 ### Added

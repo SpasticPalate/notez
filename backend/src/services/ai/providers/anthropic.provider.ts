@@ -6,6 +6,7 @@ import {
   AISuggestTagsOptions,
   AIProviderConnectionError,
   AIProviderRateLimitError,
+  AIModelNotFoundError,
   AIServiceError,
 } from '../types.js';
 
@@ -172,7 +173,7 @@ export class AnthropicProvider implements AIProvider {
       return [
         { id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5', description: 'Most capable model (Sep 2025)' },
         { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5', description: 'Fast and efficient (Oct 2025)' },
-        { id: 'claude-opus-4-1-20250805', name: 'Claude Opus 4.1', description: 'Previous flagship (Aug 2025)' },
+        { id: 'claude-opus-4-5-20251101', name: 'Claude Opus 4.5', description: 'Extended thinking flagship (Nov 2025)' },
         { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', description: 'Previous generation (Oct 2024)' },
         { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', description: 'Previous generation (Oct 2024)' },
       ];
@@ -188,6 +189,13 @@ export class AnthropicProvider implements AIProvider {
     // Check for authentication errors
     if (error.status === 401) {
       throw new AIProviderConnectionError('anthropic', error);
+    }
+
+    // Check for model not found errors
+    if (error.status === 404 || error.error?.type === 'not_found_error' ||
+        (error.message && error.message.toLowerCase().includes('model') &&
+         (error.message.toLowerCase().includes('not found') || error.message.toLowerCase().includes('does not exist')))) {
+      throw new AIModelNotFoundError('anthropic', this.model, error);
     }
 
     // Check for other API errors

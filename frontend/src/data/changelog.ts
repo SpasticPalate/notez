@@ -12,6 +12,42 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.0.0-rc.1',
+    date: '2025-12-02',
+    added: [
+      'MVP Feature Complete! All core features implemented and ready for validation',
+      'Self-Service Password Reset: Forgot password flow with email-based reset tokens',
+      'Unified Settings Hub: Profile, AI Settings, and Admin Panel in one place with sidebar navigation',
+      'Shared App Header: Consistent header with logo, search, theme toggle, and user dropdown',
+      'User Avatar Dropdown: Quick access to Profile, Settings, Admin Panel, and Logout',
+      'Enhanced Collapsed Sidebar: Folder/tag icons with hover popovers showing name and count',
+      'Styled Confirm Dialogs: Themed React dialogs replace native browser confirms',
+      'Sidebar State Persistence: Collapsed/expanded state saved to localStorage',
+    ],
+    changed: [
+      'Trash moved to bottom of folder sidebar in both views',
+      'Settings navigation uses URL hash for sections',
+    ],
+    fixed: [
+      'Trash folder 400 error in collapsed sidebar',
+      'Folder icon picker overflow when editing folders',
+    ],
+  },
+  {
+    version: '0.32.0',
+    date: '2025-12-02',
+    added: [
+      'User Avatar Upload: Upload, change, or delete profile avatars',
+      'Dynamic AI Model Fetching: Models now fetched from AI providers instead of static lists',
+      'Model Deprecation Handling: Graceful fallback when AI models are deprecated',
+      'Profile Settings Tab: New Profile section with user info and avatar management',
+    ],
+    fixed: [
+      'AI Config Bug: Can now change AI model without re-entering API key',
+      'Model selection persists correctly after configuration changes',
+    ],
+  },
+  {
     version: '0.31.0',
     date: '2024-12-01',
     added: [

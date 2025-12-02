@@ -5,6 +5,7 @@ import { authApi } from '../lib/api';
 interface User {
   userId: string;
   username: string;
+  email: string;
   role: string;
   mustChangePassword?: boolean;
 }

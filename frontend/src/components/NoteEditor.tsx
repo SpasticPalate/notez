@@ -6,6 +6,7 @@ import { TagInput } from './TagInput';
 import { TiptapEditor } from './TiptapEditor';
 import { MarkdownHelp } from './MarkdownHelp';
 import { FolderChip } from './FolderChip';
+import { useConfirm } from './ConfirmDialog';
 
 interface Note {
   id: string;
@@ -37,6 +38,7 @@ interface NoteEditorProps {
 type EditorMode = 'formatted' | 'raw';
 
 export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated, onNoteRestored }: NoteEditorProps) {
+  const confirm = useConfirm();
   const [note, setNote] = useState<Note | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -182,7 +184,13 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated
 
     // If already in trash, permanently delete
     if (note.deleted) {
-      if (!confirm(`Permanently delete "${note.title}"? This cannot be undone.`)) return;
+      const confirmed = await confirm({
+        title: 'Permanently Delete Note',
+        message: `Permanently delete "${note.title}"? This cannot be undone.`,
+        confirmText: 'Delete Forever',
+        variant: 'danger',
+      });
+      if (!confirmed) return;
       try {
         await notesApi.permanentDelete(noteId);
         onNoteDeleted(noteId);
@@ -192,7 +200,13 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated
       }
     } else {
       // Move to trash (soft delete)
-      if (!confirm(`Move "${note.title}" to trash?`)) return;
+      const confirmed = await confirm({
+        title: 'Move to Trash',
+        message: `Move "${note.title}" to trash?`,
+        confirmText: 'Move to Trash',
+        variant: 'warning',
+      });
+      if (!confirmed) return;
       try {
         await notesApi.delete(noteId);
         onNoteDeleted(noteId);
@@ -264,7 +278,13 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated
       if (!title.trim()) {
         setTitle(suggestedTitle);
       } else {
-        if (confirm(`Replace current title with: "${suggestedTitle}"?`)) {
+        const confirmed = await confirm({
+          title: 'Replace Title',
+          message: `Replace current title with: "${suggestedTitle}"?`,
+          confirmText: 'Replace',
+          variant: 'default',
+        });
+        if (confirmed) {
           setTitle(suggestedTitle);
         }
       }
