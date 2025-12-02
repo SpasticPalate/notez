@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export function LoginPage() {
@@ -101,6 +101,15 @@ export function LoginPage() {
                 placeholder="Password"
               />
             </div>
+          </div>
+
+          <div className="flex items-center justify-end">
+            <Link
+              to="/forgot-password"
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Forgot password?
+            </Link>
           </div>
 
           <div>

@@ -67,8 +67,13 @@ services:
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Please set JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Please set JWT_REFRESH_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Please set ENCRYPTION_KEY}
-      CORS_ORIGIN: ${CORS_ORIGIN:-https://notez.curgghoth.com}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://notez.cogg.haus}
       COOKIE_SECRET: ${COOKIE_SECRET:-${JWT_REFRESH_SECRET}}
+      # Email Configuration (for password reset)
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@cogg.haus}
+      APP_NAME: ${APP_NAME:-Notez}
+      APP_URL: ${APP_URL:-https://notez.cogg.haus}
       # MinIO Configuration
       MINIO_ENDPOINT: notez-minio
       MINIO_PORT: 9000

@@ -28,13 +28,14 @@ model User {
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  sessions   Session[]
-  folders    Folder[]
-  notes      Note[]
-  tags       Tag[]
-  tasks      Task[]
-  images     Image[]
-  aiSettings UserAISettings?
+  sessions            Session[]
+  folders             Folder[]
+  notes               Note[]
+  tags                Tag[]
+  tasks               Task[]
+  images              Image[]
+  aiSettings          UserAISettings?
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
 }
@@ -232,4 +233,21 @@ model Image {
   @@index([userId])
   @@index([noteId])
   @@map("images")
+}
+
+// Password reset tokens
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique @db.VarChar(100)
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("password_reset_tokens")
 }

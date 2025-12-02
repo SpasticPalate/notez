@@ -47,7 +47,19 @@ export const updateUserSchema = z.object({
   role: z.enum(['admin', 'user']).optional(),
 });
 
+// Admin password reset (used by admin to reset other users' passwords)
+export const adminResetPasswordSchema = z.object({
+  newPassword: passwordSchema,
+});
+
+// User forgot password - request reset email
+export const forgotPasswordSchema = z.object({
+  email: emailSchema,
+});
+
+// User password reset with token
 export const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Reset token is required'),
   newPassword: passwordSchema,
 });
 
@@ -205,6 +217,8 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+export type AdminResetPasswordInput = z.infer<typeof adminResetPasswordSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type CreateNoteInput = z.infer<typeof createNoteSchema>;
 export type UpdateNoteInput = z.infer<typeof updateNoteSchema>;

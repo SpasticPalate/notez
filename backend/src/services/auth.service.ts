@@ -1,6 +1,8 @@
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import { prisma } from '../lib/db.js';
 import { generateTokenPair, verifyRefreshToken } from '../utils/jwt.utils.js';
+import { emailService } from './email.service.js';
 import type { SetupInput, LoginInput, ChangePasswordInput } from '../utils/validation.schemas.js';
 
 const SALT_ROUNDS = 10;
@@ -288,6 +290,191 @@ export async function cleanupExpiredSessions() {
       expiresAt: {
         lt: new Date(),
       },
+    },
+  });
+
+  return result.count;
+}
+
+/**
+ * Hash a token using SHA-256 for secure storage
+ */
+function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+/**
+ * Request password reset - generates token and sends email
+ */
+export async function requestPasswordReset(email: string): Promise<void> {
+  // Find user by email (case-insensitive)
+  const user = await prisma.user.findFirst({
+    where: {
+      email: { equals: email.toLowerCase(), mode: 'insensitive' },
+    },
+  });
+
+  // If user not found, silently return to prevent email enumeration
+  if (!user) {
+    // Log without revealing email address
+    console.log('Password reset requested for non-existent account');
+    return;
+  }
+
+  // Check if user is active
+  if (!user.isActive) {
+    console.log('Password reset requested for inactive account');
+    return;
+  }
+
+  // Invalidate any existing reset tokens for this user
+  await prisma.passwordResetToken.updateMany({
+    where: {
+      userId: user.id,
+      usedAt: null,
+    },
+    data: {
+      usedAt: new Date(), // Mark as used to invalidate
+    },
+  });
+
+  // Generate secure random token - this is sent to the user
+  const rawToken = crypto.randomBytes(32).toString('hex');
+
+  // Hash the token for storage - only the hash is stored in DB
+  const hashedToken = hashToken(rawToken);
+
+  // Token expires in 1 hour
+  const expiresAt = new Date();
+  expiresAt.setHours(expiresAt.getHours() + 1);
+
+  // Store hashed token in database
+  await prisma.passwordResetToken.create({
+    data: {
+      userId: user.id,
+      token: hashedToken,
+      expiresAt,
+    },
+  });
+
+  // Send email with raw token (user needs raw token to reset)
+  const emailSent = await emailService.sendPasswordResetEmail(
+    user.email,
+    user.username,
+    rawToken
+  );
+
+  if (!emailSent) {
+    // Log without revealing email address
+    console.warn('Failed to send password reset email');
+    // We don't throw an error to prevent revealing if email exists
+  }
+}
+
+/**
+ * Validate a password reset token
+ */
+export async function validateResetToken(token: string): Promise<boolean> {
+  // Hash the incoming token to compare with stored hash
+  const hashedToken = hashToken(token);
+
+  const resetToken = await prisma.passwordResetToken.findUnique({
+    where: { token: hashedToken },
+  });
+
+  if (!resetToken) {
+    return false;
+  }
+
+  // Check if token has been used
+  if (resetToken.usedAt) {
+    return false;
+  }
+
+  // Check if token has expired
+  if (resetToken.expiresAt < new Date()) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Reset password using token
+ */
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  // Hash the incoming token to compare with stored hash
+  const hashedToken = hashToken(token);
+
+  // Hash new password before transaction
+  const passwordHash = await hashPassword(newPassword);
+
+  // Use interactive transaction to prevent race conditions
+  const result = await prisma.$transaction(async (tx) => {
+    // Find the token inside transaction for atomicity
+    const resetToken = await tx.passwordResetToken.findUnique({
+      where: { token: hashedToken },
+      include: { user: true },
+    });
+
+    if (!resetToken) {
+      throw new Error('Invalid reset token');
+    }
+
+    // Check if token has been used
+    if (resetToken.usedAt) {
+      throw new Error('Reset token has already been used');
+    }
+
+    // Check if token has expired
+    if (resetToken.expiresAt < new Date()) {
+      throw new Error('Reset token has expired');
+    }
+
+    // Check if user is active
+    if (!resetToken.user.isActive) {
+      throw new Error('Account is deactivated');
+    }
+
+    // Update password
+    await tx.user.update({
+      where: { id: resetToken.userId },
+      data: {
+        passwordHash,
+        mustChangePassword: false,
+      },
+    });
+
+    // Mark token as used
+    await tx.passwordResetToken.update({
+      where: { id: resetToken.id },
+      data: {
+        usedAt: new Date(),
+      },
+    });
+
+    // Invalidate all existing sessions for security
+    await tx.session.deleteMany({
+      where: { userId: resetToken.userId },
+    });
+
+    return { email: resetToken.user.email, username: resetToken.user.username };
+  });
+
+  // Send confirmation email (outside transaction)
+  await emailService.sendPasswordChangedEmail(result.email, result.username);
+}
+
+/**
+ * Clean up expired password reset tokens (should be run periodically)
+ */
+export async function cleanupExpiredResetTokens() {
+  const result = await prisma.passwordResetToken.deleteMany({
+    where: {
+      OR: [
+        { expiresAt: { lt: new Date() } },
+        { usedAt: { not: null } },
+      ],
     },
   });
 

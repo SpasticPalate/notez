@@ -6,6 +6,8 @@ import {
   setupSchema,
   loginSchema,
   changePasswordSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from '../utils/validation.schemas.js';
 
 export async function authRoutes(fastify: FastifyInstance) {
@@ -280,4 +282,90 @@ export async function authRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  // Request password reset
+  fastify.post(
+    '/auth/forgot-password',
+    {
+      preHandler: validateBody(forgotPasswordSchema),
+    },
+    async (request, _reply) => {
+      try {
+        const { email } = request.body as { email: string };
+
+        // Always return success to prevent email enumeration
+        await authService.requestPasswordReset(email);
+
+        return {
+          message: 'If an account with that email exists, a password reset link has been sent.',
+        };
+      } catch (error) {
+        fastify.log.error(error);
+        // Still return success to prevent email enumeration
+        return {
+          message: 'If an account with that email exists, a password reset link has been sent.',
+        };
+      }
+    }
+  );
+
+  // Reset password with token
+  fastify.post(
+    '/auth/reset-password',
+    {
+      preHandler: validateBody(resetPasswordSchema),
+    },
+    async (request, reply) => {
+      try {
+        const { token, newPassword } = request.body as { token: string; newPassword: string };
+
+        await authService.resetPassword(token, newPassword);
+
+        return {
+          message: 'Password has been reset successfully. You can now log in with your new password.',
+        };
+      } catch (error) {
+        fastify.log.error(error);
+
+        if (error instanceof Error) {
+          if (
+            error.message.includes('Invalid') ||
+            error.message.includes('expired') ||
+            error.message.includes('used')
+          ) {
+            return reply.status(400).send({
+              error: 'Bad Request',
+              message: error.message,
+            });
+          }
+        }
+
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: 'Failed to reset password',
+        });
+      }
+    }
+  );
+
+  // Validate reset token (for frontend to check if token is valid before showing form)
+  fastify.get('/auth/validate-reset-token', async (request, reply) => {
+    try {
+      const { token } = request.query as { token?: string };
+
+      if (!token) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Token is required',
+        });
+      }
+
+      const isValid = await authService.validateResetToken(token);
+
+      return { valid: isValid };
+    } catch (error) {
+      fastify.log.error(error);
+      return { valid: false };
+    }
+  });
 }
