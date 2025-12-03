@@ -2,157 +2,100 @@
 
 This document outlines planned features for Notez beyond the current MVP implementation.
 
-Last Updated: 2025-11-29
+Last Updated: 2025-12-03
 
 ---
 
-## Recently Completed (Current Release v0.28.x)
+## Current Status: v1.0.0-rc.2
 
-### Note Organization Improvements
-
-- ✅ **Move notes to folders** - Dropdown selector in note editor
-- ✅ **Drag-and-drop organization** - Drag notes to folders in sidebar
-- ✅ **Auto-save cursor fix** - Fixed cursor jumping during typing when auto-save triggers
-- ✅ **Task management system** - Standalone tasks with import from notes
-- ✅ **Editor scroll fix** - Fixed mousewheel scrolling in large notes
-- ✅ **Formatting improvements** - Improved keyboard shortcut reliability
+MVP feature complete with comprehensive security hardening. Preparing for stable 1.0 release.
 
 ---
 
-## Phase 1: Stability & Security (4 weeks) - PRIORITY
+## Phase 1: Stability & Security ✅ MOSTLY COMPLETE
 
 > **Goal:** Prepare for public release with security hardening and testing foundation
 
-### 1.1 Security Hardening
+### 1.1 Security Hardening ✅ COMPLETE
 
-**Status:** Immediate Priority
-**Effort:** Low
-**Impact:** Critical
-
-- [ ] Add security headers via `@fastify/helmet`
-  - HSTS (HTTP Strict Transport Security)
-  - CSP (Content Security Policy)
-  - X-Frame-Options
-  - X-Content-Type-Options
-- [ ] Implement rate limiting via `@fastify/rate-limit`
+- [x] Rate limiting via `@fastify/rate-limit`
   - Login endpoint: 5 attempts per 15 minutes
   - API endpoints: 100 requests per minute
-- [ ] Add account lockout mechanism
-  - Lock account after 5 failed login attempts
-  - Auto-unlock after 30 minutes or admin reset
-- [ ] Remove default secret fallbacks in production
+  - Password reset: 3 attempts per 15 minutes
+- [x] SQL injection prevention (parameterized queries)
+- [x] Image content validation (Sharp-based)
+- [x] Security headers (`X-Content-Type-Options: nosniff`)
+- [x] Session invalidation on logout
+- [x] Brute force protection (IP + username keying)
+- [x] Production environment validation
 
-### 1.2 Database Optimization
+### 1.2 Remaining 1.0 Tasks
 
-**Status:** Immediate Priority
-**Effort:** Low
-**Impact:** Medium
+**Status:** In Progress
+**Tracking:** See issues labeled `1.0-hardening`
 
-- [ ] Add missing foreign key indexes
-
-```sql
-CREATE INDEX idx_notes_user_id ON notes(user_id);
-CREATE INDEX idx_notes_folder_id ON notes(folder_id);
-CREATE INDEX idx_tasks_user_id ON tasks(user_id);
-CREATE INDEX idx_folders_user_id ON folders(user_id);
-```
-
-### 1.3 Testing Foundation
-
-**Status:** High Priority
-**Effort:** Medium
-**Impact:** Critical
-
-- [ ] Set up Vitest for backend and frontend
-- [ ] Implement authentication flow tests
-- [ ] Implement note CRUD tests
-- [ ] Implement search functionality tests
-- [ ] Add React Error Boundaries
-- [ ] Target: 40% coverage before public release
-
-### 1.4 CI/CD Improvements
-
-**Status:** High Priority
-**Effort:** Low-Medium
-**Impact:** Medium
-
-- [ ] Add test step to GitHub Actions workflow
-- [ ] Add linting step (ESLint + TypeScript check)
-- [ ] Add security scanning (Trivy)
-- [ ] Configure Portainer webhook for auto-deploy
-- [ ] Add database migration safety step
+- [ ] Error boundary coverage (#69)
+- [ ] Load testing with concurrent users (#67)
+- [ ] Memory leak detection (#68)
+- [ ] Edge case input testing (#70)
+- [ ] Authentication edge cases (#64)
+- [ ] Avatar loading after logout/login (#74)
 
 ---
 
-## Phase 2: Enhanced Note Capabilities (6 weeks)
+## Phase 2: Enhanced Note Capabilities
 
 > **Goal:** Add features that enhance daily note-taking workflow
 
-### 2.1 Note Linking (Wiki-Style)
+### 2.1 MCP Server Integration (NEW)
 
 **Status:** Planned
 **Priority:** High
-**Description:** Enable `[[Note Title]]` syntax to link between notes
+**Issue:** #87
 
-**Implementation:**
+Enable AI assistants (Claude, ChatGPT) to interact with Notez:
+- API token system for authentication
+- MCP server package (`notez-mcp`)
+- Tools: create, search, append, get notes
+- Persistent AI memory layer
 
-- Add TipTap extension for `[[]]` syntax detection
-- Backend: Parse and store note links in junction table
-- Frontend: Autocomplete for note titles when typing `[[`
-- Backlinks panel showing "Notes that link here"
+### 2.2 Note Linking (Wiki-Style)
 
-**Acceptance Criteria:**
+**Status:** Planned
+**Priority:** High
+**Issue:** #88
 
-- [ ] User can type `[[` to get note title suggestions
-- [ ] Clicking a link navigates to the linked note
-- [ ] Backlinks panel shows incoming links
-- [ ] Broken links are visually indicated
+Enable `[[Note Title]]` syntax to link between notes:
+- TipTap extension for `[[]]` syntax
+- Autocomplete for note titles
+- Backlinks panel showing incoming links
+- Broken link indicators
 
-### 2.2 Image Paste Support
+### 2.3 Version History
 
 **Status:** Planned
 **Priority:** Medium
-**Description:** Allow users to paste images directly into notes
+**Issue:** #89
 
-**Technical Requirements:**
-
-- **Storage:** Local filesystem initially, S3 optional
-- **Database:** New `Media` table
-- **Editor:** TipTap `@tiptap/extension-image`
-- **Security:** File type validation, size limits (10MB)
-- **Performance:** Thumbnail generation, lazy loading
-
-**Acceptance Criteria:**
-
-- [ ] User can paste images from clipboard
-- [ ] Images are uploaded and stored securely
-- [ ] Images display correctly in editor
-- [ ] Size limits are enforced
-- [ ] Image deletion works correctly
-
-### 2.3 Version History (Basic)
-
-**Status:** Planned
-**Priority:** Medium
-**Description:** Track note changes and enable restore
-
-**Implementation:**
-
-- Store note snapshots on significant saves (>50 character change)
+Track note changes and enable restore:
+- Capture snapshots on significant saves
 - Keep last 10 versions per note
-- Simple diff view between versions
+- Simple diff view
 - One-click restore
 
-**Acceptance Criteria:**
+### 2.4 Image Improvements
 
-- [ ] Versions are automatically captured
-- [ ] User can view version history
-- [ ] User can restore previous version
-- [ ] Storage is efficient (delta compression optional)
+**Status:** Partially Complete
+**Priority:** Medium
+
+- [x] Image paste/upload support (v0.31.0)
+- [x] Inline image resizing (v0.31.1)
+- [ ] Image gallery view
+- [ ] Bulk image management
 
 ---
 
-## Phase 3: Organization & Scale (8 weeks)
+## Phase 3: Organization & Scale
 
 > **Goal:** Support larger note collections and advanced workflows
 
@@ -160,25 +103,18 @@ CREATE INDEX idx_folders_user_id ON folders(user_id);
 
 **Status:** Planned
 **Priority:** Medium
-**Description:** Separate workspaces for different contexts (Work, Home, Projects)
 
-**Key Features:**
-
+Separate workspaces for different contexts:
 - Workspace switcher in navigation
 - Isolated folders, notes, tasks per workspace
-- Workspace-specific settings
 - Quick-switch keyboard shortcut
-
-**Implementation Complexity:** High - touches many parts of application
 
 ### 3.2 Advanced Search (Semantic)
 
 **Status:** Planned
 **Priority:** Medium
-**Description:** AI-powered semantic search using embeddings
 
-**Implementation:**
-
+AI-powered semantic search:
 - Generate embeddings for note content
 - Store in pgvector
 - Hybrid search: full-text + semantic
@@ -188,60 +124,54 @@ CREATE INDEX idx_folders_user_id ON folders(user_id);
 
 **Status:** Planned
 **Priority:** Medium
-**Description:** Bulk data management
 
-**Features:**
-
-- Export all notes as markdown files (zip)
+Bulk data management:
+- Export all notes as markdown (zip)
 - Export to JSON for backup
 - Import from markdown files
-- Import from other apps (Notion, Obsidian format)
+- Import from Obsidian/Notion format
 
 ### 3.4 API Documentation
 
 **Status:** Planned
 **Priority:** Low
-**Description:** OpenAPI/Swagger specification
 
-- Auto-generated from route schemas
+- OpenAPI/Swagger specification
 - Interactive documentation UI
 - API versioning support
 
 ---
 
-## Phase 4: Collaboration & Mobile (TBD)
+## Phase 4: Collaboration & Mobile
 
 > **Goal:** Enable team usage and mobile access
 
 ### 4.1 Note Sharing
 
 **Status:** Future
-**Description:** Share notes with read-only links
 
+Share notes with read-only links:
 - Generate shareable URLs
 - Optional password protection
 - Expiration dates
-- View analytics
 
 ### 4.2 Mobile Apps
 
 **Status:** Future
-**Description:** Native iOS/Android applications
 
+Native iOS/Android applications:
 - React Native implementation
 - Offline support with sync
-- Push notifications for tasks
 - Quick capture widget
 
 ### 4.3 Real-Time Collaboration
 
 **Status:** Future
-**Description:** Multi-user editing
 
+Multi-user editing:
 - Operational transformation or CRDT
 - Presence indicators
 - Comments and suggestions
-- Role-based permissions
 
 ---
 
@@ -260,14 +190,42 @@ These features are tracked but not yet prioritized:
 
 ---
 
+## Recently Completed
+
+### v1.0.0-rc.2 (2025-12-03)
+- Security hardening (rate limiting, SQL injection, image validation)
+- Collapsed sidebar improvements
+
+### v1.0.0-rc.1 (2025-12-02)
+- MVP feature complete
+- Self-service password reset
+- Unified Settings Hub
+- User avatars
+
+### v0.31.x (2025-12)
+- Image support with MinIO storage
+- Inline image resizing
+
+### v0.30.x (2025-11)
+- Folder icons
+- What's New modal
+
+### v0.29.x (2025-11)
+- Task management system
+- Note organization improvements
+
+---
+
 ## Version History
 
 | Version | Date | Description |
 |---------|------|-------------|
-| v0.28.x | 2025-11 | MVP release with task management |
-| v0.29.x | TBD | Phase 1: Security & stability |
-| v0.30.x | TBD | Phase 2: Enhanced note capabilities |
-| v0.31.x | TBD | Phase 3: Organization & scale |
+| v1.0.0-rc.2 | 2025-12-03 | Security hardening release |
+| v1.0.0-rc.1 | 2025-12-02 | MVP feature complete, user avatars, dynamic AI models |
+| v0.31.x | 2025-12 | Image support |
+| v0.30.x | 2025-11 | Folder icons, What's New |
+| v0.29.x | 2025-11 | Task management |
+| v0.28.x | 2025-11 | Initial MVP |
 
 ---
 
