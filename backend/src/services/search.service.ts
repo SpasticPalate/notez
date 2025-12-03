@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/db.js';
 
 export interface SearchOptions {
@@ -57,11 +58,15 @@ export class SearchService {
       };
     }
 
-    // Build WHERE clause parts
-    const folderCondition = folderId ? `AND n.folder_id = '${folderId}'::uuid` : '';
+    // Build folder condition using Prisma.sql for safe query composition
+    // This uses Prisma's tagged template literals which automatically escape parameters
+    const folderCondition = folderId
+      ? Prisma.sql`AND n.folder_id = ${folderId}::uuid`
+      : Prisma.empty;
 
-    // Search query with ranking and snippets
-    const results = await prisma.$queryRawUnsafe(`
+    // Search query with ranking and snippets using $queryRaw tagged template
+    // All parameters are automatically escaped by Prisma
+    const results = await prisma.$queryRaw<SearchResult[]>`
       SELECT
         n.id,
         n.title,
@@ -69,30 +74,34 @@ export class SearchService {
         n.folder_id as "folderId",
         n.created_at as "createdAt",
         n.updated_at as "updatedAt",
-        ts_rank(n.search_vector, to_tsquery('english', $1)) as rank,
+        ts_rank(n.search_vector, to_tsquery('english', ${sanitizedQuery})) as rank,
         ts_headline(
           'english',
           COALESCE(n.content, n.title),
-          to_tsquery('english', $1),
+          to_tsquery('english', ${sanitizedQuery}),
           'MaxWords=30, MinWords=15, ShortWord=3, HighlightAll=FALSE, MaxFragments=1'
         ) as snippet
       FROM notes n
-      WHERE n.user_id = $2::uuid ${folderCondition}
-        AND n.search_vector @@ to_tsquery('english', $1)
+      WHERE n.user_id = ${userId}::uuid ${folderCondition}
+        AND n.search_vector @@ to_tsquery('english', ${sanitizedQuery})
         AND n.deleted = false
       ORDER BY rank DESC, n.updated_at DESC
-      LIMIT $3
-      OFFSET $4
-    `, sanitizedQuery, userId, limit, offset) as SearchResult[];
+      LIMIT ${limit}
+      OFFSET ${offset}
+    `;
 
-    // Get total count
-    const countResult = await prisma.$queryRawUnsafe(`
+    // Get total count using $queryRaw tagged template
+    const countFolderCondition = folderId
+      ? Prisma.sql`AND n.folder_id = ${folderId}::uuid`
+      : Prisma.empty;
+
+    const countResult = await prisma.$queryRaw<[{ count: bigint }]>`
       SELECT COUNT(*) as count
       FROM notes n
-      WHERE n.user_id = $1::uuid ${folderCondition}
-        AND n.search_vector @@ to_tsquery('english', $2)
+      WHERE n.user_id = ${userId}::uuid ${countFolderCondition}
+        AND n.search_vector @@ to_tsquery('english', ${sanitizedQuery})
         AND n.deleted = false
-    `, userId, sanitizedQuery) as [{ count: bigint }];
+    `;
 
     const total = Number(countResult[0]?.count || 0);
 
