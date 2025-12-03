@@ -1,6 +1,6 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { foldersApi, tagsApi, notesApi } from '../lib/api';
-import { ChevronLeft, ChevronRight, Folder, FolderPlus, Tag, ChevronDown, ChevronUp, FileQuestion, Trash2, CheckSquare, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Folder, FolderPlus, Tag, ChevronDown, ChevronUp, FileQuestion, Trash2, CheckSquare, Sparkles, MoreHorizontal } from 'lucide-react';
 import { EditableListItem } from './EditableListItem';
 import { FolderIcon, FolderIconPicker } from './FolderIconPicker';
 import { WhatsNewModal, hasNewVersion } from './WhatsNewModal';
@@ -352,8 +352,8 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
           {/* Divider */}
           <div className="border-t border-gray-200 dark:border-gray-700 my-2 mx-2" />
 
-          {/* Folders */}
-          {folders.map((folder) => (
+          {/* Folders - limited to 8 in collapsed mode for cleaner UI */}
+          {folders.slice(0, 8).map((folder) => (
             <Popover
               key={folder.id}
               trigger={
@@ -378,36 +378,23 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
             </Popover>
           ))}
 
-          {/* Tags divider */}
-          {tags.length > 0 && (
-            <div className="border-t border-gray-200 dark:border-gray-700 my-2 mx-2" />
-          )}
-
-          {/* Tags */}
-          {tags.map((tag) => (
+          {/* Overflow indicator when more than 8 folders */}
+          {folders.length > 8 && (
             <Popover
-              key={tag.id}
+              key="folder-overflow-indicator"
               trigger={
                 <button
-                  onClick={() => {
-                    onSelectView('notes');
-                    onSelectTag(tag.id);
-                    onSelectFolder(null);
-                  }}
-                  className={`w-full p-2 flex justify-center hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                    selectedTagId === tag.id
-                      ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-600'
-                      : ''
-                  }`}
+                  onClick={onToggleCollapse}
+                  className="w-full p-2 flex justify-center hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <Tag className="w-4 h-4 text-green-600 dark:text-green-500" />
+                  <MoreHorizontal className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                 </button>
               }
             >
-              <div className="font-medium text-gray-900 dark:text-white">{tag.name}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{tag.noteCount} notes</div>
+              <div className="font-medium text-gray-900 dark:text-white">+{folders.length - 8} more folders</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Expand to see all</div>
             </Popover>
-          ))}
+          )}
 
           {/* Trash */}
           <div className="border-t border-gray-200 dark:border-gray-700 my-2 mx-2" />
