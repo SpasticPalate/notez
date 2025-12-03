@@ -478,14 +478,14 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
             className="p-1.5 hover:bg-gray-100 dark:bg-gray-700 rounded-md"
             title="New folder"
           >
-            <FolderPlus className="w-4 h-4 text-gray-600 dark:text-gray-400 dark:text-gray-500" />
+            <FolderPlus className="w-4 h-4 text-gray-600 dark:text-gray-400" />
           </button>
           <button
             onClick={onToggleCollapse}
             className="p-1.5 hover:bg-gray-100 dark:bg-gray-700 rounded-md"
             title="Collapse sidebar"
           >
-            <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400 dark:text-gray-500" />
+            <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
           </button>
         </div>
       </div>
@@ -617,9 +617,9 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
 
         {/* Folder Items */}
         {isLoading ? (
-          <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Loading...</div>
+          <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">Loading...</div>
         ) : folders.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+          <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
             No folders yet. Create one to get started!
           </div>
         ) : (
@@ -672,7 +672,7 @@ export const FolderSidebar = forwardRef<FolderSidebarHandle, FolderSidebarProps>
           {tagsExpanded && (
             <div>
               {tags.length === 0 ? (
-                <div className="px-4 py-4 text-center text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                <div className="px-4 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                   No tags yet. Add tags to your notes!
                 </div>
               ) : (

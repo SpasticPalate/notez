@@ -153,9 +153,9 @@ export const NoteList = forwardRef<NoteListHandle, NoteListProps>(({ folderId, t
       {/* Notes List */}
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (
-          <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Loading...</div>
+          <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">Loading...</div>
         ) : notes.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+          <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
             No notes yet. Click + to create one!
           </div>
         ) : (
@@ -177,18 +177,18 @@ export const NoteList = forwardRef<NoteListHandle, NoteListProps>(({ folderId, t
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">{note.title}</h3>
                   {note.content && (
-                    <p className="text-xs text-gray-600 dark:text-gray-400 dark:text-gray-500 line-clamp-2 mt-1">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mt-1">
                       {note.content.substring(0, 100)}
                     </p>
                   )}
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">{formatDate(note.updatedAt)}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{formatDate(note.updatedAt)}</span>
                     {note.tags.length > 0 && (
                       <div className="flex space-x-1">
                         {note.tags.slice(0, 2).map((tag) => (
                           <span
                             key={tag.id}
-                            className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 dark:text-gray-500 rounded"
+                            className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded"
                           >
                             {tag.name}
                           </span>

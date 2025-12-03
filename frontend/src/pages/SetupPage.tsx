@@ -61,7 +61,7 @@ export function SetupPage() {
         <div className="text-center">
           <img src="/icon-192x192.png" alt="Notez" className="w-20 h-20 mx-auto mb-4" />
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Welcome to Notez</h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-400 dark:text-gray-500">Let's set up your admin account</p>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">Let's set up your admin account</p>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>

@@ -144,7 +144,12 @@ export function SettingsHub() {
             <ArrowLeft className="w-4 h-4" />
             <span>Back to Notes</span>
           </Link>
+          <label htmlFor="settings-section-select" className="sr-only">
+            Select settings section
+          </label>
           <select
+            id="settings-section-select"
+            name="settings-section"
             value={activeSection}
             onChange={(e) => setActiveSection(e.target.value as SettingsSection)}
             className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-white"

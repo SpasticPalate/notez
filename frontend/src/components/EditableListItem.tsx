@@ -125,7 +125,12 @@ export function EditableListItem({
         <div className="flex-1 space-y-2">
           <div className="flex items-center space-x-2">
             {renderIcon ? renderIcon(true) : icon && <div className="flex-shrink-0">{icon}</div>}
+            <label htmlFor={`edit-item-${id}`} className="sr-only">
+              Edit name
+            </label>
             <input
+              id={`edit-item-${id}`}
+              name="edit-item-name"
               type="text"
               value={editingName}
               onChange={(e) => setEditingName(e.target.value)}

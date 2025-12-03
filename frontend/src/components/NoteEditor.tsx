@@ -334,7 +334,7 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated
         <div className="text-center">
           <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No note selected</h3>
-          <p className="text-gray-500 dark:text-gray-400 dark:text-gray-500">Select a note or create a new one to get started</p>
+          <p className="text-gray-500 dark:text-gray-400">Select a note or create a new one to get started</p>
         </div>
       </div>
     );
@@ -343,7 +343,7 @@ export function NoteEditor({ noteId, onNoteDeleted, onTagsChanged, onNoteUpdated
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-700">
-        <div className="text-gray-500 dark:text-gray-400 dark:text-gray-500">Loading note...</div>
+        <div className="text-gray-500 dark:text-gray-400">Loading note...</div>
       </div>
     );
   }

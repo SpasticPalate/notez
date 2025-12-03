@@ -367,13 +367,15 @@ export function AISettings() {
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+              <label htmlFor="ai-model-select" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                 Model
               </label>
 
               {availableModels.length > 0 ? (
                 <>
                   <select
+                    id="ai-model-select"
+                    name="ai-model"
                     value={model || sortModelsByRecommendation(availableModels)[0].id}
                     onChange={(e) => handleModelChange(e.target.value)}
                     disabled={isFetchingModels || isUpdatingModel}
@@ -487,8 +489,10 @@ export function AISettings() {
           <form onSubmit={handleSave} className="space-y-4">
             {/* Provider Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">AI Provider</label>
+              <label htmlFor="ai-provider-select" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">AI Provider</label>
               <select
+                id="ai-provider-select"
+                name="ai-provider"
                 value={provider}
                 onChange={(e) => {
                   const newProvider = e.target.value as AIProvider;
@@ -528,13 +532,15 @@ export function AISettings() {
 
             {/* Model Selection - Only shown after models are fetched */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+              <label htmlFor="ai-model-config-select" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                 Model {isFetchingModels && <span className="text-xs text-gray-500">(Loading...)</span>}
               </label>
 
               {availableModels.length > 0 ? (
                 <>
                   <select
+                    id="ai-model-config-select"
+                    name="ai-model-config"
                     value={model || sortModelsByRecommendation(availableModels)[0].id}
                     onChange={(e) => {
                       setModel(e.target.value);

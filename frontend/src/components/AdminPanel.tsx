@@ -343,8 +343,10 @@ export function AdminPanel() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Role</label>
+                <label htmlFor="new-user-role" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Role</label>
                 <select
+                  id="new-user-role"
+                  name="new-user-role"
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

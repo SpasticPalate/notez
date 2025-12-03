@@ -93,7 +93,7 @@ export function SearchBar() {
       {/* Search Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:bg-gray-700 rounded-md transition-colors"
+        className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
         title="Search notes (Ctrl+K)"
       >
         <Search className="w-5 h-5" />
@@ -105,9 +105,14 @@ export function SearchBar() {
           {/* Search Input */}
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <div className="relative">
+              <label htmlFor="search-notes-input" className="sr-only">
+                Search notes
+              </label>
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
               <input
                 ref={inputRef}
+                id="search-notes-input"
+                name="search-notes"
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -117,7 +122,7 @@ export function SearchBar() {
               {query && (
                 <button
                   onClick={handleClear}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -130,7 +135,7 @@ export function SearchBar() {
             {isSearching ? (
               <div className="p-8 text-center">
                 <Loader2 className="w-6 h-6 text-blue-600 animate-spin mx-auto" />
-                <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500 mt-2">Searching...</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Searching...</p>
               </div>
             ) : error ? (
               <div className="p-8 text-center">
@@ -152,7 +157,7 @@ export function SearchBar() {
                         </h4>
                         {result.snippet && (
                           <p
-                            className="text-xs text-gray-600 dark:text-gray-400 dark:text-gray-500 mt-1 line-clamp-2"
+                            className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2"
                             dangerouslySetInnerHTML={{
                               __html: DOMPurify.sanitize(result.snippet, {
                                 ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'mark'],
@@ -163,7 +168,7 @@ export function SearchBar() {
                         )}
                         <div className="flex items-center gap-2 mt-2">
                           {result.folder && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
                               📁 {result.folder.name}
                             </span>
                           )}
@@ -172,13 +177,13 @@ export function SearchBar() {
                               {result.tags.slice(0, 3).map((tag) => (
                                 <span
                                   key={tag.id}
-                                  className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 dark:text-gray-500 rounded"
+                                  className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded"
                                 >
                                   {tag.name}
                                 </span>
                               ))}
                               {result.tags.length > 3 && (
-                                <span className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
                                   +{result.tags.length - 3}
                                 </span>
                               )}
@@ -193,12 +198,12 @@ export function SearchBar() {
             ) : query ? (
               <div className="p-8 text-center">
                 <Search className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto" />
-                <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500 mt-2">No notes found</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">No notes found</p>
               </div>
             ) : (
               <div className="p-8 text-center">
                 <Search className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto" />
-                <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500 mt-2">Start typing to search</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Start typing to search</p>
               </div>
             )}
           </div>

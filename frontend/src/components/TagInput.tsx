@@ -180,8 +180,13 @@ export function TagInput({ tags, onChange, disabled = false }: TagInputProps) {
 
         {!disabled && (
           <div className="flex-1 min-w-[120px]">
+            <label htmlFor="tag-input" className="sr-only">
+              Add tags
+            </label>
             <input
               ref={inputRef}
+              id="tag-input"
+              name="tag-input"
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
