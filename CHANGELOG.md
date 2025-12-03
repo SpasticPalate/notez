@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-rc.2] - 2025-12-03
+
+**Security Hardening Release**
+
+Comprehensive security audit and hardening based on Qodo AI code review. This release addresses all identified security concerns and adds defense-in-depth measures across the application.
+
+### Security
+
+- **SQL Injection Prevention**: Replaced `$queryRawUnsafe` with parameterized `$queryRaw` using Prisma tagged template literals
+- **Image Content Validation**: Added Sharp-based image parsing to prevent content-type spoofing attacks
+- **Rate Limiting**: Added global rate limiting (100 req/min) with stricter limits on auth endpoints (5 req/15min)
+- **Brute Force Protection**: Auth endpoints keyed by IP + username/email to prevent credential stuffing
+- **Session Invalidation**: Logout now invalidates JWT by setting expiration in the past
+- **Security Headers**: Added `X-Content-Type-Options: nosniff` to all image responses
+- **File Size Limits**: Enforced server-side limits (10MB images, 5MB avatars)
+- **Password Reset Protection**: Rate limited to 3 attempts per IP per 15 minutes
+
+### Fixed
+
+- Console warnings for form accessibility (missing `name` attributes)
+- Duplicate CSS custom properties causing console noise
+- TypeScript scope issues in catch blocks for structured logging
+
+### Changed
+
+- Collapsed sidebar now shows only folder icons (removed tag icons - all identical)
+- Limited folder icons to 8 in collapsed mode with overflow indicator
+- Overflow indicator expands sidebar when clicked
+
+### Technical
+
+- New `validateImageContent()` utility using Sharp for content validation
+- New `ALLOWED_IMAGE_MIME_TYPES` constant for consistent validation
+- Added `@fastify/rate-limit` plugin with custom error responses
+- Improved logging in image upload/retrieval routes
+
 ## [1.0.0-rc.1] - 2025-12-02
 
 **MVP Feature Complete - Release Candidate**
@@ -210,7 +246,10 @@ All success criteria from the MVP specification have been met:
 - Docker deployment support
 - Multi-user authentication
 
-[Unreleased]: https://github.com/SpasticPalate/notez/compare/v0.31.1...HEAD
+[Unreleased]: https://github.com/SpasticPalate/notez/compare/v1.0.0-rc.2...HEAD
+[1.0.0-rc.2]: https://github.com/SpasticPalate/notez/compare/v1.0.0-rc.1...v1.0.0-rc.2
+[1.0.0-rc.1]: https://github.com/SpasticPalate/notez/compare/v0.32.0...v1.0.0-rc.1
+[0.32.0]: https://github.com/SpasticPalate/notez/compare/v0.31.1...v0.32.0
 [0.31.1]: https://github.com/SpasticPalate/notez/compare/v0.31.0...v0.31.1
 [0.31.0]: https://github.com/SpasticPalate/notez/compare/v0.30.1...v0.31.0
 [0.30.1]: https://github.com/SpasticPalate/notez/compare/v0.30.0...v0.30.1
