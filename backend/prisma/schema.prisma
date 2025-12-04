@@ -87,11 +87,12 @@ model Note {
   updatedAt    DateTime                  @updatedAt @map("updated_at")
 
   // Relations
-  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  folder Folder?   @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  tags   NoteTag[]
-  tasks  Task[]
-  images Image[]
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder      Folder?    @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  tags        NoteTag[]
+  tasks       Task[]
+  images      Image[]
+  sourceLinks NoteLink[] @relation("sourceLinks")
 
   @@index([searchVector], type: Gin)
   @@map("notes")
@@ -251,4 +252,20 @@ model PasswordResetToken {
   @@index([token])
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+// Note links for wiki-style [[references]]
+model NoteLink {
+  id            String   @id @default(uuid())
+  sourceNoteId  String   @map("source_note_id")
+  targetKeyword String   @map("target_keyword") @db.VarChar(255)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  sourceNote Note @relation("sourceLinks", fields: [sourceNoteId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceNoteId, targetKeyword])
+  @@index([targetKeyword])
+  @@index([sourceNoteId])
+  @@map("note_links")
 }

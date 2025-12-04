@@ -235,6 +235,20 @@ export const profileApi = {
   getAvatarUrl: (userId: string) => `/api/profile/avatar/${userId}`,
 };
 
+export const referencesApi = {
+  // Find all notes containing a wiki-link to the given keyword
+  findByKeyword: (keyword: string, params?: { limit?: number; offset?: number }) =>
+    api.get('/api/notes/references', { params: { keyword, ...params } }),
+
+  // Get backlinks for a specific note (notes that link TO this note)
+  getBacklinks: (noteId: string) =>
+    api.get(`/api/notes/${noteId}/backlinks`),
+
+  // Get all unique keywords used in wiki-links (for autocomplete)
+  getKeywords: () =>
+    api.get('/api/notes/keywords'),
+};
+
 export const tasksApi = {
   list: (params?: {
     status?: string | string[];
