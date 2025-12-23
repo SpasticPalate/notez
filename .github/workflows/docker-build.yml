@@ -65,7 +65,7 @@ jobs:
           KOMODO_API_SECRET: ${{ secrets.KOMODO_API_SECRET }}
         run: |
           set -euo pipefail
-          response=$(curl -s -w "%{http_code}" -o /tmp/deploy_response.json -X POST "https://komo.local.cogg.haus/execute" \
+          response=$(curl -sk -w "%{http_code}" -o /tmp/deploy_response.json -X POST "https://komo.local.cogg.haus/execute" \
             -H "X-API-KEY: $KOMODO_API_KEY" \
             -H "X-API-SECRET: $KOMODO_API_SECRET" \
             -H "Content-Type: application/json" \
