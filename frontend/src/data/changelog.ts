@@ -12,6 +12,22 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.0.0',
+    date: '2025-12-22',
+    added: [
+      'User Feedback System: Submit bug reports and feature requests directly in the app',
+      'Admin Feedback Panel: Dashboard with stats, status workflow, admin notes with auto-save',
+      'Admin Notifications: Bell icon with unread count, click to navigate to feedback items',
+      'Wiki-Links Backlinks System: Find all notes that reference a given note',
+      'Load Testing Infrastructure: k6-based load testing for performance validation',
+    ],
+    fixed: [
+      'Session Refresh Race Condition: Fixed error when multiple tabs refresh tokens simultaneously',
+      'Settings Navigation: Changed from hash-based to route-based navigation',
+      'Infinite Reload Loop: Fixed Settings page reload issue',
+    ],
+  },
+  {
     version: '1.0.0-rc.1',
     date: '2025-12-02',
     added: [
