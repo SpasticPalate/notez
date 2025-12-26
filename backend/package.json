@@ -38,7 +38,7 @@
     "dotenv": "^16.4.5",
     "fastify": "^5.0.0",
     "jsdom": "^25.0.1",
-    "jsonwebtoken": "^9.0.2",
+    "jsonwebtoken": "^9.0.3",
     "minio": "^8.0.6",
     "openai": "^6.4.0",
     "resend": "^6.5.2",
