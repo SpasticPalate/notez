@@ -12,7 +12,7 @@ steps:
       username:
         from_secret: github_username
       password:
-        from_secret: github_token
+        from_secret: github_password
       platforms: linux/amd64
       tags:
         - ${CI_COMMIT_SHA}
