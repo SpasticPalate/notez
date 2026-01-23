@@ -140,9 +140,25 @@ export const aiSuggestTagsSchema = z.object({
   maxTags: z.number().int().min(1).max(20).default(5).optional(),
 });
 
+// Safe URL schema - only allows http(s) protocols
+const safeUrlSchema = z.string()
+  .url('Invalid URL')
+  .max(2048, 'URL must not exceed 2048 characters')
+  .refine(
+    (url) => {
+      try {
+        const parsed = new URL(url);
+        return ['http:', 'https:'].includes(parsed.protocol);
+      } catch {
+        return false;
+      }
+    },
+    { message: 'Only http and https URLs are allowed' }
+  );
+
 // Task link schema
 const taskLinkSchema = z.object({
-  url: z.string().url('Invalid URL').max(2048, 'URL must not exceed 2048 characters'),
+  url: safeUrlSchema,
   title: z.string().max(255, 'Link title must not exceed 255 characters').optional(),
 });
 
@@ -173,12 +189,12 @@ export const updateTaskSchema = z.object({
 
 // Task link management schemas
 export const addTaskLinkSchema = z.object({
-  url: z.string().url('Invalid URL').max(2048, 'URL must not exceed 2048 characters'),
+  url: safeUrlSchema,
   title: z.string().max(255, 'Link title must not exceed 255 characters').optional(),
 });
 
 export const updateTaskLinkSchema = z.object({
-  url: z.string().url('Invalid URL').max(2048, 'URL must not exceed 2048 characters').optional(),
+  url: safeUrlSchema.optional(),
   title: z.string().max(255, 'Link title must not exceed 255 characters').nullable().optional(),
 });
 

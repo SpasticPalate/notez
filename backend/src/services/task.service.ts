@@ -610,66 +610,72 @@ export async function getTaskStats(userId: string) {
 
 /**
  * Add a link to a task
+ * Uses a transaction to prevent race conditions on link limit
  */
 export async function addTaskLink(
   taskId: string,
   userId: string,
   data: { url: string; title?: string }
 ) {
-  // Verify task exists and belongs to user
-  const task = await prisma.task.findFirst({
-    where: {
-      id: taskId,
-      userId,
-    },
-    include: {
-      _count: {
-        select: { links: true },
+  return prisma.$transaction(async (tx) => {
+    // Verify task exists and belongs to user, with lock for update
+    const task = await tx.task.findFirst({
+      where: {
+        id: taskId,
+        userId,
       },
-    },
+      include: {
+        _count: {
+          select: { links: true },
+        },
+      },
+    });
+
+    if (!task) {
+      throw new Error('Task not found');
+    }
+
+    // Check link limit (max 10) within transaction
+    if (task._count.links >= 10) {
+      throw new Error('Maximum 10 links per task');
+    }
+
+    // Create the link within transaction
+    const link = await tx.taskLink.create({
+      data: {
+        taskId,
+        url: data.url,
+        title: data.title || null,
+      },
+      select: {
+        id: true,
+        url: true,
+        title: true,
+        createdAt: true,
+      },
+    });
+
+    return link;
   });
-
-  if (!task) {
-    throw new Error('Task not found');
-  }
-
-  // Check link limit (max 10)
-  if (task._count.links >= 10) {
-    throw new Error('Maximum 10 links per task');
-  }
-
-  // Create the link
-  const link = await prisma.taskLink.create({
-    data: {
-      taskId,
-      url: data.url,
-      title: data.title || null,
-    },
-    select: {
-      id: true,
-      url: true,
-      title: true,
-      createdAt: true,
-    },
-  });
-
-  return link;
 }
 
 /**
  * Update a task link
+ * Verifies the link belongs to the specified task and user
  */
 export async function updateTaskLink(
+  taskId: string,
   linkId: string,
   userId: string,
   data: { url?: string; title?: string | null }
 ) {
-  // Verify link exists and belongs to user's task
+  // Verify link exists, belongs to the specified task, and the task belongs to the user
   const link = await prisma.taskLink.findFirst({
     where: {
       id: linkId,
+      taskId, // Verify link belongs to the specified task
       task: {
-        userId,
+        userId, // Verify task belongs to the user
       },
     },
   });
@@ -699,14 +705,16 @@ export async function updateTaskLink(
 
 /**
  * Delete a task link
+ * Verifies the link belongs to the specified task and user
  */
-export async function deleteTaskLink(linkId: string, userId: string) {
-  // Verify link exists and belongs to user's task
+export async function deleteTaskLink(taskId: string, linkId: string, userId: string) {
+  // Verify link exists, belongs to the specified task, and the task belongs to the user
   const link = await prisma.taskLink.findFirst({
     where: {
       id: linkId,
+      taskId, // Verify link belongs to the specified task
       task: {
-        userId,
+        userId, // Verify task belongs to the user
       },
     },
   });

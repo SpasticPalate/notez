@@ -362,7 +362,7 @@ export async function tasksRoutes(fastify: FastifyInstance) {
         const params = request.params as z.infer<typeof linkIdParamSchema>;
         const body = request.body as z.infer<typeof updateTaskLinkSchema>;
 
-        const link = await taskService.updateTaskLink(params.linkId, userId, body);
+        const link = await taskService.updateTaskLink(params.id, params.linkId, userId, body);
         return link;
       } catch (error: any) {
         fastify.log.error(error);
@@ -393,7 +393,7 @@ export async function tasksRoutes(fastify: FastifyInstance) {
         const userId = request.user!.userId;
         const params = request.params as z.infer<typeof linkIdParamSchema>;
 
-        await taskService.deleteTaskLink(params.linkId, userId);
+        await taskService.deleteTaskLink(params.id, params.linkId, userId);
         return reply.status(204).send();
       } catch (error: any) {
         fastify.log.error(error);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader2, Circle, PlayCircle, CheckCircle2, XCircle, Clock, AlertCircle, FileText, Link2 } from 'lucide-react';
 import { tasksApi } from '../lib/api';
 import type { Task, TaskStatus, TaskPriority } from '../types';
@@ -68,6 +68,7 @@ export default function KanbanBoard({ onNoteClick, onTaskClick }: KanbanBoardPro
   const [dragOverColumn, setDragOverColumn] = useState<TaskStatus | null>(null);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const dragCounter = useRef<Record<string, number>>({});
+  const taskRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     loadTasks();
@@ -178,6 +179,56 @@ export default function KanbanBoard({ onNoteClick, onTaskClick }: KanbanBoardPro
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
+  // Keyboard navigation: move task to adjacent column
+  const moveTaskToColumn = useCallback(async (task: Task, direction: 'left' | 'right') => {
+    const currentIndex = COLUMNS.findIndex((col) => col.status === task.status);
+    const newIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1;
+
+    if (newIndex < 0 || newIndex >= COLUMNS.length) return;
+
+    const newStatus = COLUMNS[newIndex].status;
+    setIsUpdating(task.id);
+
+    // Optimistic update
+    setTasks((prevTasks) =>
+      prevTasks.map((t) =>
+        t.id === task.id ? { ...t, status: newStatus } : t
+      )
+    );
+
+    try {
+      await tasksApi.updateStatus(task.id, newStatus);
+      // Focus the task in its new column after state update
+      setTimeout(() => {
+        taskRefs.current[task.id]?.focus();
+      }, 100);
+    } catch (error) {
+      console.error('Failed to update task status:', error);
+      loadTasks();
+    } finally {
+      setIsUpdating(null);
+    }
+  }, []);
+
+  // Handle keyboard events on task cards
+  const handleTaskKeyDown = useCallback((e: React.KeyboardEvent, task: Task) => {
+    switch (e.key) {
+      case 'ArrowLeft':
+        e.preventDefault();
+        moveTaskToColumn(task, 'left');
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        moveTaskToColumn(task, 'right');
+        break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        onTaskClick?.(task);
+        break;
+    }
+  }, [moveTaskToColumn, onTaskClick]);
+
   const isOverdue = (task: Task) => {
     return (
       task.dueDate &&
@@ -204,7 +255,7 @@ export default function KanbanBoard({ onNoteClick, onTaskClick }: KanbanBoardPro
       <div className="px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Kanban Board</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Drag tasks between columns to update their status
+          Drag tasks or use <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">←</kbd> <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">→</kbd> arrow keys to move between columns
         </p>
       </div>
 
@@ -218,6 +269,8 @@ export default function KanbanBoard({ onNoteClick, onTaskClick }: KanbanBoardPro
             return (
               <div
                 key={column.status}
+                role="region"
+                aria-label={`${column.title} column, ${columnTasks.length} tasks`}
                 className={`flex flex-col w-72 rounded-lg ${column.bgColor} ${
                   isDragOver ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900' : ''
                 } transition-all`}
@@ -246,15 +299,21 @@ export default function KanbanBoard({ onNoteClick, onTaskClick }: KanbanBoardPro
                       <div
                         id={`kanban-card-${task.id}`}
                         key={task.id}
+                        ref={(el) => { taskRefs.current[task.id] = el; }}
+                        tabIndex={0}
+                        role="button"
+                        aria-label={`${task.title}, ${task.priority} priority${task.dueDate ? `, due ${formatDueDate(task.dueDate)}` : ''}. Use left and right arrow keys to move between columns.`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, task)}
                         onDragEnd={handleDragEnd}
                         onClick={() => onTaskClick?.(task)}
+                        onKeyDown={(e) => handleTaskKeyDown(e, task)}
                         className={`
                           bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700
                           border-l-4 ${priorityColors[task.priority]}
                           p-3 cursor-grab active:cursor-grabbing
                           hover:shadow-md transition-shadow
+                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
                           ${isUpdating === task.id ? 'opacity-50' : ''}
                           ${isOverdue(task) ? 'ring-1 ring-red-500' : ''}
                         `}
