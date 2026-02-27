@@ -54,3 +54,25 @@ export interface NoteListResponse {
   notes: NotezNote[];
   total: number;
 }
+
+export interface NotezTag {
+  id: string;
+  name: string;
+  noteCount: number;
+  createdAt: string;
+}
+
+export interface NotezShare {
+  id: string;
+  noteId: string;
+  userId: string;
+  permission: 'VIEW' | 'EDIT';
+  user: { id: string; username: string; email: string };
+  createdAt: string;
+}
+
+export interface SuccessResponse {
+  success: true;
+  message?: string;
+  noteCount?: number;
+}

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-02-27
+
+### Added
+
+- **Full MCP Capabilities**: Expanded MCP tools from 11 to 24 — Claude Code can now fully manage notes, tasks, folders, tags, and sharing
+- **MCP Note Management**: Update note content/title/folder/tags (`notez_update_note`), delete notes (`notez_delete_note`)
+- **MCP Task Management**: Full task updates (`notez_update_task`), delete tasks (`notez_delete_task`)
+- **MCP Folder Management**: Create (`notez_create_folder`), rename/re-icon (`notez_update_folder`), delete (`notez_delete_folder`) folders
+- **MCP Tag Management**: List all tags (`notez_list_tags`), rename (`notez_rename_tag`), delete (`notez_delete_tag`) tags
+- **MCP Sharing**: Share notes with users (`notez_share_note`), list shares (`notez_list_shares`), unshare (`notez_unshare_note`)
+- **MCP API Routes**: New backend endpoints for all write operations — `PATCH/DELETE /api/mcp/notes/:id`, `PUT/DELETE /api/mcp/tasks/:id`, `POST/PATCH/DELETE /api/mcp/folders/:id`, `GET/PATCH/DELETE /api/mcp/tags/:id`, `POST/GET/DELETE /api/mcp/notes/:id/shares`
+
 ## [1.8.0] - 2026-02-27
 
 ### Changed

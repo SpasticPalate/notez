@@ -2,9 +2,12 @@ import type {
   NotezNote,
   NotezTask,
   NotezFolder,
+  NotezTag,
+  NotezShare,
   SearchResponse,
   TaskListResponse,
   NoteListResponse,
+  SuccessResponse,
 } from './types.js';
 
 /**
@@ -87,6 +90,24 @@ export class NotezClient {
     });
   }
 
+  async updateNote(id: string, data: {
+    title?: string;
+    content?: string;
+    folderId?: string | null;
+    tags?: string[];
+  }): Promise<NotezNote> {
+    return this.request<NotezNote>(`/notes/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteNote(id: string): Promise<SuccessResponse> {
+    return this.request<SuccessResponse>(`/notes/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // ─── Tasks ──────────────────────────────────────────────────────────
 
   async listTasks(status?: string, limit = 20): Promise<TaskListResponse> {
@@ -120,9 +141,94 @@ export class NotezClient {
     });
   }
 
+  async updateTask(id: string, data: {
+    title?: string;
+    description?: string;
+    status?: string;
+    priority?: string;
+    dueDate?: string | null;
+    folderId?: string | null;
+    tags?: string[];
+  }): Promise<NotezTask> {
+    return this.request<NotezTask>(`/tasks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteTask(id: string): Promise<SuccessResponse> {
+    return this.request<SuccessResponse>(`/tasks/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // ─── Folders ────────────────────────────────────────────────────────
 
   async listFolders(): Promise<NotezFolder[]> {
     return this.request<NotezFolder[]>('/folders');
+  }
+
+  async createFolder(data: {
+    name: string;
+    icon?: string;
+  }): Promise<NotezFolder> {
+    return this.request<NotezFolder>('/folders', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateFolder(id: string, data: {
+    name?: string;
+    icon?: string;
+  }): Promise<NotezFolder> {
+    return this.request<NotezFolder>(`/folders/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteFolder(id: string): Promise<SuccessResponse> {
+    return this.request<SuccessResponse>(`/folders/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ─── Tags ───────────────────────────────────────────────────────────
+
+  async listTags(): Promise<NotezTag[]> {
+    return this.request<NotezTag[]>('/tags');
+  }
+
+  async renameTag(id: string, name: string): Promise<NotezTag> {
+    return this.request<NotezTag>(`/tags/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  async deleteTag(id: string): Promise<SuccessResponse> {
+    return this.request<SuccessResponse>(`/tags/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ─── Sharing ────────────────────────────────────────────────────────
+
+  async shareNote(noteId: string, usernameOrEmail: string, permission?: 'VIEW' | 'EDIT'): Promise<NotezShare> {
+    return this.request<NotezShare>(`/notes/${noteId}/shares`, {
+      method: 'POST',
+      body: JSON.stringify({ usernameOrEmail, permission }),
+    });
+  }
+
+  async listShares(noteId: string): Promise<NotezShare[]> {
+    return this.request<NotezShare[]>(`/notes/${noteId}/shares`);
+  }
+
+  async unshareNote(noteId: string, shareId: string): Promise<SuccessResponse> {
+    return this.request<SuccessResponse>(`/notes/${noteId}/shares/${shareId}`, {
+      method: 'DELETE',
+    });
   }
 }

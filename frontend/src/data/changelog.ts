@@ -12,6 +12,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.9.0',
+    date: '2026-02-27',
+    added: [
+      'Full MCP capabilities: Claude Code can now edit, delete, organize, tag, and share your notes and tasks',
+      'Folder management via MCP: create, rename, and delete folders',
+      'Tag management via MCP: list, rename, and delete tags',
+      'Note sharing via MCP: share notes with other users directly from Claude Code',
+    ],
+  },
+  {
     version: '1.8.0',
     date: '2026-02-27',
     changed: [

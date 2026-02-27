@@ -3,11 +3,14 @@ import { authenticateApiToken, requireScope } from '../middleware/auth.middlewar
 import { validateQuery, validateParams, validateBody } from '../middleware/validate.middleware.js';
 import { z } from 'zod';
 import { searchService } from '../services/search.service.js';
-import { getNoteById, getNoteByTitle, listNotes, createNote, updateNote } from '../services/note.service.js';
-import { getTaskById, listTasks, createTask, updateTaskStatus } from '../services/task.service.js';
-import { listFolders } from '../services/folder.service.js';
+import { getNoteById, getNoteByTitle, listNotes, createNote, updateNote, deleteNote } from '../services/note.service.js';
+import { getTaskById, listTasks, createTask, updateTaskStatus, updateTask, deleteTask } from '../services/task.service.js';
+import { listFolders, createFolder, updateFolder, deleteFolder } from '../services/folder.service.js';
+import { listTags, renameTag, deleteTag } from '../services/tag.service.js';
+import { shareNote, listSharesForNote, unshareNote } from '../services/share.service.js';
 import { hashToken } from '../services/token.service.js';
 import { BadRequestError } from '../utils/errors.js';
+import { FOLDER_ICONS } from '../utils/validation.schemas.js';
 
 // --- Query/Body schemas for MCP routes ---
 
@@ -60,6 +63,55 @@ const createTaskBody = z.object({
 
 const updateTaskStatusBody = z.object({
   status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']),
+});
+
+const updateNoteBody = z.object({
+  title: z.string().min(1).max(500).optional(),
+  content: z.string().optional(),
+  folderId: z.string().uuid().nullable().optional(),
+  tags: z.array(z.string().min(1).max(100)).optional(),
+});
+
+const updateTaskBody = z.object({
+  title: z.string().min(1).max(500).optional(),
+  description: z.string().optional(),
+  status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).optional(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
+  dueDate: z.string().datetime().nullable().optional(),
+  folderId: z.string().uuid().nullable().optional(),
+  tags: z.array(z.string().min(1).max(100)).optional(),
+});
+
+const createFolderBody = z.object({
+  name: z.string().min(1).max(255),
+  icon: z.enum(FOLDER_ICONS).default('folder').optional(),
+});
+
+const updateFolderBody = z.object({
+  name: z.string().min(1).max(255).optional(),
+  icon: z.enum(FOLDER_ICONS).optional(),
+});
+
+const folderIdParam = z.object({
+  id: z.string().uuid(),
+});
+
+const tagIdParam = z.object({
+  id: z.string().uuid(),
+});
+
+const renameTagBody = z.object({
+  name: z.string().min(1).max(100),
+});
+
+const shareNoteBody = z.object({
+  usernameOrEmail: z.string().min(1).max(255),
+  permission: z.enum(['VIEW', 'EDIT']).default('VIEW').optional(),
+});
+
+const shareIdParam = z.object({
+  id: z.string().uuid(),
+  shareId: z.string().uuid(),
 });
 
 /**
@@ -227,6 +279,31 @@ export async function mcpRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // Update a note (title, content, folder, tags)
+  fastify.patch(
+    '/notes/:id',
+    { config: perTokenRateLimit, preHandler: [requireScope('write'), validateParams(noteIdParam), validateBody(updateNoteBody)] },
+    async (request: FastifyRequest) => {
+      const userId = request.user!.userId;
+      const { id } = request.params as { id: string };
+      const body = request.body as z.infer<typeof updateNoteBody>;
+
+      return updateNote(id, userId, body);
+    }
+  );
+
+  // Delete a note (soft delete — moves to trash)
+  fastify.delete(
+    '/notes/:id',
+    { config: perTokenRateLimit, preHandler: [requireScope('write'), validateParams(noteIdParam)] },
+    async (request: FastifyRequest) => {
+      const userId = request.user!.userId;
+      const { id } = request.params as { id: string };
+
+      return deleteNote(id, userId);
+    }
+  );
+
   // ─── Tasks (read scope) ───────────────────────────────────────────────
 
   // List tasks (optionally filter by status)
@@ -287,7 +364,32 @@ export async function mcpRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // ─── Folders (read scope) ─────────────────────────────────────────────
+  // Update a task (title, description, priority, due date, folder, tags)
+  fastify.put(
+    '/tasks/:id',
+    { config: perTokenRateLimit, preHandler: [requireScope('write'), validateParams(taskIdParam), validateBody(updateTaskBody)] },
+    async (request: FastifyRequest) => {
+      const userId = request.user!.userId;
+      const { id } = request.params as { id: string };
+      const body = request.body as z.infer<typeof updateTaskBody>;
+
+      return updateTask(id, userId, body);
+    }
+  );
+
+  // Delete a task
+  fastify.delete(
+    '/tasks/:id',
+    { config: perTokenRateLimit, preHandler: [requireScope('write'), validateParams(taskIdParam)] },
+    async (request: FastifyRequest) => {
+      const userId = request.user!.userId;
+      const { id } = request.params as { id: string };
+
+      return deleteTask(id, userId);
+    }
+  );
+
+  // ─── Folders ────────────────────────────────────────────────────────────
 
   // List all folders
   fastify.get(
@@ -296,6 +398,123 @@ export async function mcpRoutes(fastify: FastifyInstance) {
     async (request: FastifyRequest) => {
       const userId = request.user!.userId;
       return listFolders(userId);
+    }
+  );
+
+  // Create a folder
+  fastify.post(
+    '/folders',
+    { config: perTokenRateLimit, preHandler: [requireScope('write'), validateBody(createFolderBody)] },
+    async (request: FastifyRequest, reply) => {
+      const userId = request.user!.userId;
+      const body = request.body as z.infer<typeof createFolderBody>;
+
+      const folder = await createFolder(userId, body);
+      reply.code(201);
+      return folder;
+    }
+  );
+
+  // Update/rename a folder
+  fastify.patch(
+    '/folders/:id',
+    { config: perTokenRateLimit, preHandler: [requireScope('write'), validateParams(folderIdParam), validateBody(updateFolderBody)] },
+    async (request: FastifyRequest) => {
+      const userId = request.user!.userId;
+      const { id } = request.params as { id: string };
+      const body = request.body as z.infer<typeof updateFolderBody>;
+
+      return updateFolder(id, userId, body);
+    }
+  );
+
+  // Delete a folder
+  fastify.delete(
+    '/folders/:id',
+    { config: perTokenRateLimit, preHandler: [requireScope('write'), validateParams(folderIdParam)] },
+    async (request: FastifyRequest) => {
+      const userId = request.user!.userId;
+      const { id } = request.params as { id: string };
+
+      return deleteFolder(id, userId);
+    }
+  );
+
+  // ─── Tags ───────────────────────────────────────────────────────────────
+
+  // List all tags
+  fastify.get(
+    '/tags',
+    { config: perTokenRateLimit, preHandler: requireScope('read') },
+    async (request: FastifyRequest) => {
+      const userId = request.user!.userId;
+      return listTags(userId);
+    }
+  );
+
+  // Rename a tag
+  fastify.patch(
+    '/tags/:id',
+    { config: perTokenRateLimit, preHandler: [requireScope('write'), validateParams(tagIdParam), validateBody(renameTagBody)] },
+    async (request: FastifyRequest) => {
+      const userId = request.user!.userId;
+      const { id } = request.params as { id: string };
+      const { name } = request.body as z.infer<typeof renameTagBody>;
+
+      return renameTag(id, userId, name);
+    }
+  );
+
+  // Delete a tag
+  fastify.delete(
+    '/tags/:id',
+    { config: perTokenRateLimit, preHandler: [requireScope('write'), validateParams(tagIdParam)] },
+    async (request: FastifyRequest) => {
+      const userId = request.user!.userId;
+      const { id } = request.params as { id: string };
+
+      return deleteTag(id, userId);
+    }
+  );
+
+  // ─── Sharing ────────────────────────────────────────────────────────────
+
+  // Share a note with another user
+  fastify.post(
+    '/notes/:id/shares',
+    { config: perTokenRateLimit, preHandler: [requireScope('write'), validateParams(noteIdParam), validateBody(shareNoteBody)] },
+    async (request: FastifyRequest, reply) => {
+      const userId = request.user!.userId;
+      const { id } = request.params as { id: string };
+      const { usernameOrEmail, permission } = request.body as z.infer<typeof shareNoteBody>;
+
+      const share = await shareNote(id, userId, usernameOrEmail, permission);
+      reply.code(201);
+      return share;
+    }
+  );
+
+  // List shares for a note
+  fastify.get(
+    '/notes/:id/shares',
+    { config: perTokenRateLimit, preHandler: [requireScope('read'), validateParams(noteIdParam)] },
+    async (request: FastifyRequest) => {
+      const userId = request.user!.userId;
+      const { id } = request.params as { id: string };
+
+      return listSharesForNote(id, userId);
+    }
+  );
+
+  // Remove a share
+  fastify.delete(
+    '/notes/:id/shares/:shareId',
+    { config: perTokenRateLimit, preHandler: [requireScope('write'), validateParams(shareIdParam)] },
+    async (request: FastifyRequest) => {
+      const userId = request.user!.userId;
+      const { id, shareId } = request.params as { id: string; shareId: string };
+
+      return unshareNote(id, userId, shareId);
     }
   );
 }

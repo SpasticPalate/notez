@@ -8,7 +8,7 @@ import { NotezClient } from './client.js';
 export function createNotezServer(client: NotezClient): McpServer {
   const server = new McpServer({
     name: 'notez',
-    version: '1.6.0',
+    version: '1.9.0',
   });
 
   // ─── Notes (read) ───────────────────────────────────────────────────
@@ -264,6 +264,115 @@ export function createNotezServer(client: NotezClient): McpServer {
     }
   );
 
+  // ─── Notes (update/delete) ─────────────────────────────────────────
+
+  server.registerTool(
+    'notez_update_note',
+    {
+      description: 'Update a note. Can change title, content (HTML), folder, or tags. Set folderId to null to unfile.',
+      inputSchema: {
+        id: z.string().uuid().describe('Note UUID'),
+        title: z.string().optional().describe('New title'),
+        content: z.string().optional().describe('New content (HTML)'),
+        folderId: z.string().uuid().nullable().optional().describe('Folder UUID (null to unfiled)'),
+        tags: z.array(z.string()).optional().describe('Replace all tags with these tag names'),
+      },
+    },
+    async ({ id, title, content, folderId, tags }) => {
+      try {
+        const note = await client.updateNote(id, { title, content, folderId, tags });
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(note, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.registerTool(
+    'notez_delete_note',
+    {
+      description: 'Delete a note (moves to trash).',
+      inputSchema: {
+        id: z.string().uuid().describe('Note UUID'),
+      },
+    },
+    async ({ id }) => {
+      try {
+        const result = await client.deleteNote(id);
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ─── Tasks (update/delete) ──────────────────────────────────────────
+
+  server.registerTool(
+    'notez_update_task',
+    {
+      description: 'Update a task. Can change title, description, status, priority, due date, folder, or tags.',
+      inputSchema: {
+        id: z.string().uuid().describe('Task UUID'),
+        title: z.string().optional().describe('New title'),
+        description: z.string().optional().describe('New description'),
+        status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).optional()
+          .describe('New status'),
+        priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional()
+          .describe('New priority'),
+        dueDate: z.string().nullable().optional().describe('Due date (ISO 8601) or null to clear'),
+        folderId: z.string().uuid().nullable().optional().describe('Folder UUID or null to unfiled'),
+        tags: z.array(z.string()).optional().describe('Replace all tags with these tag names'),
+      },
+    },
+    async ({ id, title, description, status, priority, dueDate, folderId, tags }) => {
+      try {
+        const task = await client.updateTask(id, { title, description, status, priority, dueDate, folderId, tags });
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(task, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.registerTool(
+    'notez_delete_task',
+    {
+      description: 'Delete a task permanently.',
+      inputSchema: {
+        id: z.string().uuid().describe('Task UUID'),
+      },
+    },
+    async ({ id }) => {
+      try {
+        const result = await client.deleteTask(id);
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
   // ─── Folders ────────────────────────────────────────────────────────
 
   server.registerTool(
@@ -277,6 +386,223 @@ export function createNotezServer(client: NotezClient): McpServer {
         const folders = await client.listFolders();
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(folders, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.registerTool(
+    'notez_create_folder',
+    {
+      description: 'Create a new folder.',
+      inputSchema: {
+        name: z.string().describe('Folder name'),
+        icon: z.string().optional().describe('Lucide icon name (e.g. "briefcase", "code", "star"). Defaults to "folder".'),
+      },
+    },
+    async ({ name, icon }) => {
+      try {
+        const folder = await client.createFolder({ name, icon });
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(folder, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.registerTool(
+    'notez_update_folder',
+    {
+      description: 'Rename a folder or change its icon.',
+      inputSchema: {
+        id: z.string().uuid().describe('Folder UUID'),
+        name: z.string().optional().describe('New folder name'),
+        icon: z.string().optional().describe('New Lucide icon name'),
+      },
+    },
+    async ({ id, name, icon }) => {
+      try {
+        const folder = await client.updateFolder(id, { name, icon });
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(folder, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.registerTool(
+    'notez_delete_folder',
+    {
+      description: 'Delete a folder. Notes in the folder become unfiled (not deleted).',
+      inputSchema: {
+        id: z.string().uuid().describe('Folder UUID'),
+      },
+    },
+    async ({ id }) => {
+      try {
+        const result = await client.deleteFolder(id);
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ─── Tags ───────────────────────────────────────────────────────────
+
+  server.registerTool(
+    'notez_list_tags',
+    {
+      description: 'List all tags with note counts.',
+      inputSchema: {},
+    },
+    async () => {
+      try {
+        const tags = await client.listTags();
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(tags, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.registerTool(
+    'notez_rename_tag',
+    {
+      description: 'Rename a tag. All notes with the tag are updated.',
+      inputSchema: {
+        id: z.string().uuid().describe('Tag UUID'),
+        name: z.string().describe('New tag name'),
+      },
+    },
+    async ({ id, name }) => {
+      try {
+        const tag = await client.renameTag(id, name);
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(tag, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.registerTool(
+    'notez_delete_tag',
+    {
+      description: 'Delete a tag. Removes the tag from all notes.',
+      inputSchema: {
+        id: z.string().uuid().describe('Tag UUID'),
+      },
+    },
+    async ({ id }) => {
+      try {
+        const result = await client.deleteTag(id);
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ─── Sharing ────────────────────────────────────────────────────────
+
+  server.registerTool(
+    'notez_share_note',
+    {
+      description: 'Share a note with another user by username or email.',
+      inputSchema: {
+        noteId: z.string().uuid().describe('Note UUID'),
+        usernameOrEmail: z.string().describe('Username or email of the user to share with'),
+        permission: z.enum(['VIEW', 'EDIT']).optional()
+          .describe('Permission level (default: VIEW)'),
+      },
+    },
+    async ({ noteId, usernameOrEmail, permission }) => {
+      try {
+        const share = await client.shareNote(noteId, usernameOrEmail, permission);
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(share, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.registerTool(
+    'notez_list_shares',
+    {
+      description: 'List all shares for a note you own.',
+      inputSchema: {
+        noteId: z.string().uuid().describe('Note UUID'),
+      },
+    },
+    async ({ noteId }) => {
+      try {
+        const shares = await client.listShares(noteId);
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(shares, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.registerTool(
+    'notez_unshare_note',
+    {
+      description: 'Remove a share from a note (stop sharing with a user).',
+      inputSchema: {
+        noteId: z.string().uuid().describe('Note UUID'),
+        shareId: z.string().uuid().describe('Share UUID (from notez_list_shares)'),
+      },
+    },
+    async ({ noteId, shareId }) => {
+      try {
+        const result = await client.unshareNote(noteId, shareId);
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
         };
       } catch (error) {
         return {
