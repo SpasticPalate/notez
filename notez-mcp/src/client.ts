@@ -151,7 +151,7 @@ export class NotezClient {
     tags?: string[];
   }): Promise<NotezTask> {
     return this.request<NotezTask>(`/tasks/${id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   }

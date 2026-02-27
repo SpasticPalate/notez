@@ -34,9 +34,9 @@ const noteIdParam = z.object({
 
 const createNoteBody = z.object({
   title: z.string().min(1).max(500),
-  content: z.string().optional(),
+  content: z.string().max(500000).optional(),
   folderId: z.string().uuid().optional(),
-  tags: z.array(z.string().min(1).max(100)).optional(),
+  tags: z.array(z.string().min(1).max(100)).max(50).optional(),
 });
 
 const appendNoteBody = z.object({
@@ -54,11 +54,11 @@ const taskIdParam = z.object({
 
 const createTaskBody = z.object({
   title: z.string().min(1).max(500),
-  description: z.string().optional(),
+  description: z.string().max(50000).optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).default('MEDIUM').optional(),
   dueDate: z.string().datetime().optional(),
   folderId: z.string().uuid().optional(),
-  tags: z.array(z.string().min(1).max(100)).optional(),
+  tags: z.array(z.string().min(1).max(100)).max(50).optional(),
 });
 
 const updateTaskStatusBody = z.object({
@@ -67,19 +67,19 @@ const updateTaskStatusBody = z.object({
 
 const updateNoteBody = z.object({
   title: z.string().min(1).max(500).optional(),
-  content: z.string().optional(),
+  content: z.string().max(500000).optional(),
   folderId: z.string().uuid().nullable().optional(),
-  tags: z.array(z.string().min(1).max(100)).optional(),
+  tags: z.array(z.string().min(1).max(100)).max(50).optional(),
 });
 
 const updateTaskBody = z.object({
   title: z.string().min(1).max(500).optional(),
-  description: z.string().optional(),
+  description: z.string().max(50000).optional(),
   status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
   dueDate: z.string().datetime().nullable().optional(),
   folderId: z.string().uuid().nullable().optional(),
-  tags: z.array(z.string().min(1).max(100)).optional(),
+  tags: z.array(z.string().min(1).max(100)).max(50).optional(),
 });
 
 const createFolderBody = z.object({
@@ -365,7 +365,7 @@ export async function mcpRoutes(fastify: FastifyInstance) {
   );
 
   // Update a task (title, description, priority, due date, folder, tags)
-  fastify.put(
+  fastify.patch(
     '/tasks/:id',
     { config: perTokenRateLimit, preHandler: [requireScope('write'), validateParams(taskIdParam), validateBody(updateTaskBody)] },
     async (request: FastifyRequest) => {

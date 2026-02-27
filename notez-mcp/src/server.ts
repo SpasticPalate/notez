@@ -274,8 +274,8 @@ export function createNotezServer(client: NotezClient): McpServer {
         id: z.string().uuid().describe('Note UUID'),
         title: z.string().optional().describe('New title'),
         content: z.string().optional().describe('New content (HTML)'),
-        folderId: z.string().uuid().nullable().optional().describe('Folder UUID (null to unfiled)'),
-        tags: z.array(z.string()).optional().describe('Replace all tags with these tag names'),
+        folderId: z.string().uuid().nullable().optional().describe('Folder UUID, or null to move note to unfiled'),
+        tags: z.array(z.string()).optional().describe('REPLACES all existing tags — pass the full desired tag list. To add a tag, first read the note to get current tags, then include them all plus the new one.'),
       },
     },
     async ({ id, title, content, folderId, tags }) => {
@@ -331,8 +331,8 @@ export function createNotezServer(client: NotezClient): McpServer {
         priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional()
           .describe('New priority'),
         dueDate: z.string().nullable().optional().describe('Due date (ISO 8601) or null to clear'),
-        folderId: z.string().uuid().nullable().optional().describe('Folder UUID or null to unfiled'),
-        tags: z.array(z.string()).optional().describe('Replace all tags with these tag names'),
+        folderId: z.string().uuid().nullable().optional().describe('Folder UUID, or null to remove from folder'),
+        tags: z.array(z.string()).optional().describe('REPLACES all existing tags — pass the full desired tag list. To add a tag, first read the task to get current tags, then include them all plus the new one.'),
       },
     },
     async ({ id, title, description, status, priority, dueDate, folderId, tags }) => {
@@ -473,7 +473,7 @@ export function createNotezServer(client: NotezClient): McpServer {
   server.registerTool(
     'notez_list_tags',
     {
-      description: 'List all tags with note counts.',
+      description: 'List all tags with note counts. Returns a JSON array. Tags are created automatically when first used in notez_create_note, notez_update_note, notez_create_task, or notez_update_task — there is no separate create-tag tool.',
       inputSchema: {},
     },
     async () => {
@@ -492,9 +492,9 @@ export function createNotezServer(client: NotezClient): McpServer {
   );
 
   server.registerTool(
-    'notez_rename_tag',
+    'notez_update_tag',
     {
-      description: 'Rename a tag. All notes with the tag are updated.',
+      description: 'Update a tag (rename it). All notes with the tag are updated automatically.',
       inputSchema: {
         id: z.string().uuid().describe('Tag UUID'),
         name: z.string().describe('New tag name'),

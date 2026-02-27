@@ -67,7 +67,7 @@ export interface NotezShare {
   noteId: string;
   userId: string;
   permission: 'VIEW' | 'EDIT';
-  user: { id: string; username: string; email: string };
+  sharedWith: { id: string; username: string; email: string };
   createdAt: string;
 }
 
