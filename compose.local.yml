@@ -1,0 +1,63 @@
+# Docker Compose for Local Testing
+# Copy this file and set real values — do NOT use these defaults in production
+# Usage: docker compose -f compose.local.yml up --build
+
+services:
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: notez-local-backend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      # External Postgres (host.docker.internal refers to host machine)
+      DATABASE_URL: postgresql://notez:change-me-in-production@host.docker.internal:5433/notez?schema=public
+      # JWT Secrets
+      JWT_ACCESS_SECRET: change-me-jwt-secret
+      JWT_REFRESH_SECRET: change-me-refresh-secret
+      COOKIE_SECRET: change-me-cookie-secret
+      # Encryption Key
+      ENCRYPTION_KEY: change-me-encryption-key-32chars
+      # CORS
+      CORS_ORIGIN: http://localhost:5173
+      # External MinIO
+      MINIO_ENDPOINT: host.docker.internal
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: false
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: change-me-minio-secret
+      MINIO_BUCKET: notez-images
+      # Public URL for images (accessed from browser)
+      MINIO_PUBLIC_URL: http://localhost:9000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Run migrations then start
+    command: sh -c "npx prisma migrate deploy && node dist/index.js"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:5173
+    container_name: notez-local-frontend
+    ports:
+      - "5173:80"
+    environment:
+      # Backend URL for nginx proxy (container-to-container via Docker network)
+      API_BACKEND_URL: http://backend:3000
+    depends_on:
+      backend:
+        condition: service_healthy

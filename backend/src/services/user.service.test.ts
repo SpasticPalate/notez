@@ -1,0 +1,575 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Mock prisma before importing the service
+vi.mock('../lib/db.js', () => ({
+  prisma: {
+    user: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      count: vi.fn(),
+    },
+    session: {
+      deleteMany: vi.fn(),
+    },
+    note: {
+      count: vi.fn(),
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+    },
+    folder: {
+      count: vi.fn(),
+    },
+    tag: {
+      count: vi.fn(),
+    },
+    task: {
+      findMany: vi.fn(),
+      count: vi.fn(),
+    },
+    $transaction: vi.fn(),
+    $queryRaw: vi.fn(),
+  },
+}));
+
+// Mock auth service for hashPassword
+vi.mock('./auth.service.js', () => ({
+  hashPassword: vi.fn().mockResolvedValue('hashed-password'),
+}));
+
+// Mock app config
+vi.mock('../config/app.config.js', () => ({
+  APP_VERSION: '1.2.3',
+  NODE_VERSION: 'v18.0.0',
+}));
+
+import {
+  getUserById,
+  listUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+  resetUserPassword,
+  getUserStats,
+  getSystemInfo,
+  listServiceAccounts,
+  listServiceAccountNotes,
+  getServiceAccountNote,
+  listServiceAccountTasks,
+} from './user.service.js';
+import { prisma } from '../lib/db.js';
+
+const mockPrisma = vi.mocked(prisma);
+
+const baseUser = {
+  id: 'user-1',
+  username: 'alice',
+  email: 'alice@test.com',
+  role: 'user',
+  isActive: true,
+  isServiceAccount: false,
+  mustChangePassword: false,
+  createdAt: new Date('2024-01-01'),
+  updatedAt: new Date('2024-01-01'),
+};
+
+describe('user.service', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // ─── getUserById ──────────────────────────────────────────────────────
+  describe('getUserById', () => {
+    it('should return user when found', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(baseUser as any);
+
+      const result = await getUserById('user-1');
+
+      expect(result.id).toBe('user-1');
+      expect(result.username).toBe('alice');
+    });
+
+    it('should throw when user not found', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(getUserById('user-999')).rejects.toThrow('User not found');
+    });
+
+    it('should query by id', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(baseUser as any);
+
+      await getUserById('user-42');
+
+      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'user-42' } })
+      );
+    });
+
+    it('should include isServiceAccount in select', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(baseUser as any);
+
+      await getUserById('user-1');
+
+      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: expect.objectContaining({ isServiceAccount: true }),
+        })
+      );
+    });
+  });
+
+  // ─── listUsers ────────────────────────────────────────────────────────
+  describe('listUsers', () => {
+    it('should return only active users by default', async () => {
+      mockPrisma.user.findMany.mockResolvedValue([baseUser] as any);
+
+      await listUsers();
+
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isActive: true } })
+      );
+    });
+
+    it('should return all users when includeInactive is true', async () => {
+      mockPrisma.user.findMany.mockResolvedValue([baseUser] as any);
+
+      await listUsers(true);
+
+      // When includeInactive=true, where should be undefined (no filter)
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: undefined })
+      );
+    });
+
+    it('should return empty array when no users exist', async () => {
+      mockPrisma.user.findMany.mockResolvedValue([]);
+
+      const result = await listUsers();
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  // ─── createUser ───────────────────────────────────────────────────────
+  describe('createUser', () => {
+    const newUserData = {
+      username: 'bob',
+      email: 'bob@test.com',
+      password: 'Password1!',
+    };
+
+    it('should create user and return without passwordHash', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+      mockPrisma.user.create.mockResolvedValue({
+        ...baseUser,
+        id: 'user-new',
+        username: 'bob',
+        email: 'bob@test.com',
+        mustChangePassword: true,
+      } as any);
+
+      const result = await createUser(newUserData);
+
+      expect(result.username).toBe('bob');
+      expect(result.email).toBe('bob@test.com');
+      expect((result as any).passwordHash).toBeUndefined();
+    });
+
+    it('should throw when username already exists', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue({
+        id: 'existing',
+        username: 'bob',
+        email: 'other@test.com',
+      } as any);
+
+      await expect(createUser(newUserData)).rejects.toThrow('Username already exists');
+    });
+
+    it('should throw when email already exists', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue({
+        id: 'existing',
+        username: 'other',
+        email: 'bob@test.com',
+      } as any);
+
+      await expect(createUser(newUserData)).rejects.toThrow('Email already exists');
+    });
+
+    it('should hash the password before creating user', async () => {
+      const { hashPassword } = await import('./auth.service.js');
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+      mockPrisma.user.create.mockResolvedValue({ ...baseUser } as any);
+
+      await createUser(newUserData);
+
+      expect(hashPassword).toHaveBeenCalledWith('Password1!');
+      expect(mockPrisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ passwordHash: 'hashed-password' }),
+        })
+      );
+    });
+
+    it('should set mustChangePassword to true on creation', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+      mockPrisma.user.create.mockResolvedValue({ ...baseUser } as any);
+
+      await createUser(newUserData);
+
+      expect(mockPrisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ mustChangePassword: true }),
+        })
+      );
+    });
+
+    it('should use provided role, defaulting to user', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+      mockPrisma.user.create.mockResolvedValue({ ...baseUser } as any);
+
+      await createUser({ ...newUserData, role: 'admin' });
+
+      expect(mockPrisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ role: 'admin' }),
+        })
+      );
+    });
+
+    it('should pass isServiceAccount to Prisma create', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+      mockPrisma.user.create.mockResolvedValue({
+        ...baseUser,
+        isServiceAccount: true,
+      } as any);
+
+      await createUser({ ...newUserData, isServiceAccount: true });
+
+      expect(mockPrisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ isServiceAccount: true }),
+        })
+      );
+    });
+
+    it('should default isServiceAccount to false', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+      mockPrisma.user.create.mockResolvedValue({ ...baseUser } as any);
+
+      await createUser(newUserData);
+
+      expect(mockPrisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ isServiceAccount: false }),
+        })
+      );
+    });
+  });
+
+  // ─── updateUser ───────────────────────────────────────────────────────
+  describe('updateUser', () => {
+    it('should throw when user not found', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(updateUser('user-999', { role: 'admin' })).rejects.toThrow('User not found');
+    });
+
+    it('should update user normally when isActive is not false', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ id: 'user-1' } as any);
+      mockPrisma.user.update.mockResolvedValue({ ...baseUser, role: 'admin' } as any);
+
+      const result = await updateUser('user-1', { role: 'admin' });
+
+      expect(result.role).toBe('admin');
+      expect(mockPrisma.user.update).toHaveBeenCalled();
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('should use $transaction to update and delete sessions when deactivating', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ id: 'user-1' } as any);
+      const deactivatedUser = { ...baseUser, isActive: false };
+      mockPrisma.user.update.mockResolvedValue(deactivatedUser as any);
+      mockPrisma.$transaction.mockResolvedValue([deactivatedUser, { count: 2 }] as any);
+
+      const result = await updateUser('user-1', { isActive: false });
+
+      expect(result.isActive).toBe(false);
+      expect(mockPrisma.$transaction).toHaveBeenCalled();
+    });
+
+    it('should strip isServiceAccount from update data (immutability guard)', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ id: 'user-1' } as any);
+      mockPrisma.user.update.mockResolvedValue({ ...baseUser } as any);
+
+      // Pass isServiceAccount in update data — it should be stripped
+      await updateUser('user-1', { role: 'admin', isServiceAccount: true } as any);
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.not.objectContaining({ isServiceAccount: expect.anything() }),
+        })
+      );
+    });
+  });
+
+  // ─── deleteUser ───────────────────────────────────────────────────────
+  describe('deleteUser', () => {
+    it('should deactivate user (soft delete)', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ id: 'user-1' } as any);
+      const deactivatedUser = { ...baseUser, isActive: false };
+      mockPrisma.$transaction.mockResolvedValue([deactivatedUser, { count: 1 }] as any);
+
+      const result = await deleteUser('user-1');
+
+      expect(result.isActive).toBe(false);
+    });
+
+    it('should throw if user not found', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(deleteUser('user-999')).rejects.toThrow('User not found');
+    });
+  });
+
+  // ─── resetUserPassword ────────────────────────────────────────────────
+  describe('resetUserPassword', () => {
+    it('should hash new password and use $transaction', async () => {
+      const { hashPassword } = await import('./auth.service.js');
+      const updatedUser = { ...baseUser, mustChangePassword: true };
+      mockPrisma.$transaction.mockResolvedValue([updatedUser, { count: 1 }] as any);
+
+      const result = await resetUserPassword('user-1', 'NewPass1!');
+
+      expect(hashPassword).toHaveBeenCalledWith('NewPass1!');
+      expect(result.mustChangePassword).toBe(true);
+      expect(mockPrisma.$transaction).toHaveBeenCalled();
+    });
+
+    it('should set mustChangePassword to true after reset', async () => {
+      const updatedUser = { ...baseUser, mustChangePassword: true };
+      mockPrisma.$transaction.mockResolvedValue([updatedUser, { count: 0 }] as any);
+
+      const result = await resetUserPassword('user-1', 'AnyPass1!');
+
+      expect(result.mustChangePassword).toBe(true);
+    });
+  });
+
+  // ─── getUserStats ─────────────────────────────────────────────────────
+  describe('getUserStats', () => {
+    it('should return correct stats including serviceAccounts', async () => {
+      mockPrisma.user.count
+        .mockResolvedValueOnce(10) // totalUsers
+        .mockResolvedValueOnce(8)  // activeUsers
+        .mockResolvedValueOnce(2)  // adminUsers
+        .mockResolvedValueOnce(1); // serviceAccounts
+
+      const result = await getUserStats();
+
+      expect(result.totalUsers).toBe(10);
+      expect(result.activeUsers).toBe(8);
+      expect(result.inactiveUsers).toBe(2);
+      expect(result.adminUsers).toBe(2);
+      expect(result.serviceAccounts).toBe(1);
+    });
+
+    it('should compute inactiveUsers as total minus active', async () => {
+      mockPrisma.user.count
+        .mockResolvedValueOnce(5)
+        .mockResolvedValueOnce(3)
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(0);
+
+      const result = await getUserStats();
+
+      expect(result.inactiveUsers).toBe(2);
+    });
+  });
+
+  // ─── listServiceAccounts ──────────────────────────────────────────────
+  describe('listServiceAccounts', () => {
+    it('should query for service account users', async () => {
+      mockPrisma.user.findMany.mockResolvedValue([
+        { ...baseUser, isServiceAccount: true, username: 'claude-agent' },
+      ] as any);
+
+      const result = await listServiceAccounts();
+
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isServiceAccount: true },
+        })
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0].username).toBe('claude-agent');
+    });
+
+    it('should return empty array when no service accounts', async () => {
+      mockPrisma.user.findMany.mockResolvedValue([]);
+
+      const result = await listServiceAccounts();
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  // ─── listServiceAccountNotes ──────────────────────────────────────────
+  describe('listServiceAccountNotes', () => {
+    it('should return empty when no notes exist', async () => {
+      mockPrisma.note.findMany.mockResolvedValue([]);
+      mockPrisma.note.count.mockResolvedValue(0);
+
+      const result = await listServiceAccountNotes();
+
+      expect(result).toEqual({ notes: [], total: 0 });
+    });
+
+    it('should fetch notes from service account users using nested filter', async () => {
+      mockPrisma.note.findMany.mockResolvedValue([
+        { id: 'note-1', title: 'Agent Note', user: { id: 'sa-1', username: 'claude-agent' } },
+      ] as any);
+      mockPrisma.note.count.mockResolvedValue(1);
+
+      const result = await listServiceAccountNotes();
+
+      expect(result.notes).toHaveLength(1);
+      expect(result.total).toBe(1);
+      expect(mockPrisma.note.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { user: { isServiceAccount: true }, deleted: false },
+        })
+      );
+    });
+  });
+
+  // ─── getServiceAccountNote ────────────────────────────────────────────
+  describe('getServiceAccountNote', () => {
+    it('should throw when note not found', async () => {
+      mockPrisma.note.findUnique.mockResolvedValue(null);
+
+      await expect(getServiceAccountNote('note-999')).rejects.toThrow('Note not found');
+    });
+
+    it('should throw when note does not belong to service account', async () => {
+      mockPrisma.note.findUnique.mockResolvedValue({
+        id: 'note-1',
+        user: { id: 'user-1', username: 'alice', isServiceAccount: false },
+      } as any);
+
+      await expect(getServiceAccountNote('note-1')).rejects.toThrow(
+        'Note does not belong to a service account'
+      );
+    });
+
+    it('should return note when owned by service account', async () => {
+      const mockNote = {
+        id: 'note-1',
+        title: 'Agent Note',
+        content: 'some content',
+        user: { id: 'sa-1', username: 'claude-agent', isServiceAccount: true },
+        tags: [],
+        folder: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      mockPrisma.note.findUnique.mockResolvedValue(mockNote as any);
+
+      const result = await getServiceAccountNote('note-1');
+
+      expect(result.id).toBe('note-1');
+      expect(result.title).toBe('Agent Note');
+    });
+  });
+
+  // ─── listServiceAccountTasks ──────────────────────────────────────────
+  describe('listServiceAccountTasks', () => {
+    it('should return empty when no tasks exist', async () => {
+      mockPrisma.task.findMany.mockResolvedValue([]);
+      mockPrisma.task.count.mockResolvedValue(0);
+
+      const result = await listServiceAccountTasks();
+
+      expect(result).toEqual({ tasks: [], total: 0 });
+    });
+
+    it('should fetch tasks from service account users using nested filter', async () => {
+      mockPrisma.task.findMany.mockResolvedValue([
+        { id: 'task-1', title: 'Agent Task', user: { id: 'sa-1', username: 'claude-agent' } },
+      ] as any);
+      mockPrisma.task.count.mockResolvedValue(1);
+
+      const result = await listServiceAccountTasks();
+
+      expect(result.tasks).toHaveLength(1);
+      expect(result.total).toBe(1);
+      expect(mockPrisma.task.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { user: { isServiceAccount: true } },
+        })
+      );
+    });
+  });
+
+  // ─── getSystemInfo ────────────────────────────────────────────────────
+  describe('getSystemInfo', () => {
+    it('should return version and node version from config', async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([{ version: 'PostgreSQL 15.2 on x86_64' }] as any);
+      mockPrisma.note.count.mockResolvedValue(100);
+      mockPrisma.folder.count.mockResolvedValue(10);
+      mockPrisma.tag.count.mockResolvedValue(20);
+
+      const result = await getSystemInfo();
+
+      expect(result.version).toBe('1.2.3');
+      expect(result.nodeVersion).toBe('v18.0.0');
+    });
+
+    it('should return database as connected when query succeeds', async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([{ version: 'PostgreSQL 15.2 on x86_64' }] as any);
+      mockPrisma.note.count.mockResolvedValue(0);
+      mockPrisma.folder.count.mockResolvedValue(0);
+      mockPrisma.tag.count.mockResolvedValue(0);
+
+      const result = await getSystemInfo();
+
+      expect(result.database.status).toBe('connected');
+    });
+
+    it('should return database as disconnected when query fails', async () => {
+      mockPrisma.$queryRaw.mockRejectedValue(new Error('Connection refused'));
+      mockPrisma.note.count.mockResolvedValue(0);
+      mockPrisma.folder.count.mockResolvedValue(0);
+      mockPrisma.tag.count.mockResolvedValue(0);
+
+      const result = await getSystemInfo();
+
+      expect(result.database.status).toBe('disconnected');
+    });
+
+    it('should return statistics from counts', async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([{ version: 'PostgreSQL 15.2' }] as any);
+      mockPrisma.note.count.mockResolvedValue(50);
+      mockPrisma.folder.count.mockResolvedValue(5);
+      mockPrisma.tag.count.mockResolvedValue(15);
+
+      const result = await getSystemInfo();
+
+      expect(result.statistics.totalNotes).toBe(50);
+      expect(result.statistics.totalFolders).toBe(5);
+      expect(result.statistics.totalTags).toBe(15);
+    });
+
+    it('should return uptime string', async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([{ version: 'PostgreSQL 15.2' }] as any);
+      mockPrisma.note.count.mockResolvedValue(0);
+      mockPrisma.folder.count.mockResolvedValue(0);
+      mockPrisma.tag.count.mockResolvedValue(0);
+
+      const result = await getSystemInfo();
+
+      expect(result.uptime).toMatch(/\d+h \d+m/);
+    });
+  });
+});

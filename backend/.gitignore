@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+
+# Build
+dist/
+
+# Prisma (migrations SHOULD be committed)
+# Only ignore the Prisma client generated files
+prisma/generated/
+
+# Logs
+*.log

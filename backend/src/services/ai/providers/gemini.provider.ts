@@ -1,0 +1,181 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import {
+  AIProvider,
+  AISummarizeOptions,
+  AISuggestTitleOptions,
+  AISuggestTagsOptions,
+  AIProviderConnectionError,
+  AIProviderRateLimitError,
+  AIModelNotFoundError,
+  AIServiceError,
+} from '../types.js';
+
+export class GeminiProvider implements AIProvider {
+  private client: GoogleGenerativeAI;
+  private model: string;
+
+  constructor(apiKey: string, model?: string) {
+    this.client = new GoogleGenerativeAI(apiKey);
+    this.model = model || 'gemini-1.5-flash'; // Default to Flash for speed and cost
+  }
+
+  async summarize(options: AISummarizeOptions): Promise<string> {
+    const { content, maxLength = 100 } = options;
+
+    try {
+      const model = this.client.getGenerativeModel({ model: this.model });
+
+      const prompt = `Please provide a concise summary of the following text in approximately ${maxLength} words. Focus on the main ideas and key points:\n\n${content}`;
+
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      const summary = response.text().trim();
+
+      if (!summary) {
+        throw new Error('No response received from Gemini');
+      }
+
+      return summary;
+    } catch (error: any) {
+      this.handleError(error, 'summarize');
+      throw error; // TypeScript needs this
+    }
+  }
+
+  async suggestTitle(options: AISuggestTitleOptions): Promise<string> {
+    const { content, maxLength = 60 } = options;
+
+    try {
+      const model = this.client.getGenerativeModel({ model: this.model });
+
+      const prompt = `Based on the following content, suggest a clear and concise title (maximum ${maxLength} characters). Return ONLY the title text, no quotes or extra formatting:\n\n${content}`;
+
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      const title = response.text().trim();
+
+      if (!title) {
+        throw new Error('No response received from Gemini');
+      }
+
+      // Remove any quotes and trim
+      const cleanTitle = title.replace(/^["']|["']$/g, '');
+
+      // Truncate if too long
+      return cleanTitle.length > maxLength
+        ? cleanTitle.substring(0, maxLength).trim()
+        : cleanTitle;
+    } catch (error: any) {
+      this.handleError(error, 'suggestTitle');
+      throw error; // TypeScript needs this
+    }
+  }
+
+  async suggestTags(options: AISuggestTagsOptions): Promise<string[]> {
+    const { content, maxTags = 5, existingTags = [] } = options;
+
+    try {
+      const model = this.client.getGenerativeModel({ model: this.model });
+
+      // Build the prompt with context about existing tags
+      let prompt = `Based on the following content, suggest up to ${maxTags} relevant tags.`;
+
+      if (existingTags.length > 0) {
+        prompt += `\n\nIMPORTANT: The user already has these tags: ${existingTags.join(', ')}`;
+        prompt += `\nPlease PREFER using existing tags when they are relevant to the content. Only create new tags if none of the existing tags are appropriate.`;
+      }
+
+      prompt += `\n\nReturn ONLY the tags as a comma-separated list, no explanations or extra text:\n\n${content}`;
+
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      const tagsText = response.text().trim();
+
+      if (!tagsText) {
+        throw new Error('No response received from Gemini');
+      }
+
+      // Parse comma-separated tags
+      const tags = tagsText
+        .split(',')
+        .map((tag) => tag.trim().toLowerCase())
+        .filter((tag) => tag.length > 0 && tag.length <= 50) // Filter out empty and too-long tags
+        .slice(0, maxTags);
+
+      return tags;
+    } catch (error: any) {
+      this.handleError(error, 'suggestTags');
+      throw error; // TypeScript needs this
+    }
+  }
+
+  async testConnection(): Promise<boolean> {
+    try {
+      // Simple test: ask Gemini to respond with a specific word
+      const model = this.client.getGenerativeModel({ model: this.model });
+
+      const result = await model.generateContent('Respond with just the word "OK"');
+      const response = result.response;
+      const text = response.text();
+
+      return text !== undefined && text.trim().length > 0;
+    } catch (error: any) {
+      this.handleError(error, 'testConnection');
+      return false;
+    }
+  }
+
+  async listModels(): Promise<Array<{ id: string; name: string; description?: string }>> {
+    // Google Gemini doesn't have a public list models API endpoint
+    // Return hardcoded list of current models
+    // Pricing (Dec 2025): Flash-Lite $0.075/$0.30, Flash $0.15/$0.60, Pro $1.25/$10 per M tokens
+    return [
+      { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite', description: 'Best value - fastest and cheapest' },
+      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Fast with reasoning capability' },
+      { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: 'Balanced speed and capability' },
+      { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: 'Most capable model' },
+      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Previous generation flash' },
+      { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Previous generation pro' },
+    ];
+  }
+
+  private handleError(error: any, operation: string): never {
+    // Check for rate limiting
+    if (error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED')) {
+      throw new AIProviderRateLimitError('gemini', error);
+    }
+
+    // Check for authentication errors
+    if (
+      error.message?.includes('401') ||
+      error.message?.includes('API key') ||
+      error.message?.includes('UNAUTHENTICATED')
+    ) {
+      throw new AIProviderConnectionError('gemini', error);
+    }
+
+    // Check for model not found errors
+    if (error.message?.includes('404') ||
+        error.message?.includes('NOT_FOUND') ||
+        (error.message?.toLowerCase()?.includes('model') &&
+         (error.message?.toLowerCase()?.includes('not found') || error.message?.toLowerCase()?.includes('does not exist')))) {
+      throw new AIModelNotFoundError('gemini', this.model, error);
+    }
+
+    // Check for other API errors
+    if (error.message?.includes('4') || error.message?.includes('5')) {
+      throw new AIServiceError(
+        `Gemini API error during ${operation}: ${error.message || 'Unknown error'}`,
+        'gemini',
+        error
+      );
+    }
+
+    // Network or unknown errors
+    throw new AIServiceError(
+      `Failed to ${operation} with Gemini: ${error.message || 'Unknown error'}`,
+      'gemini',
+      error
+    );
+  }
+}
