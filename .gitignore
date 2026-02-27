@@ -37,6 +37,9 @@ Thumbs.db
 # Claude Code local settings
 .claude/settings.local.json
 
+# BMad Method (dev tooling, not part of the app)
+.bmad/
+
 # Temporary/generated documentation (keep brownfield docs, exclude session artifacts)
 docs/project-scan-report.json
 docs/bmm-workflow-status.yaml
