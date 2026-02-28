@@ -25,14 +25,17 @@ export class NotezClient {
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}/api/mcp${path}`;
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${this.token}`,
+      ...(options.headers as Record<string, string>),
+    };
+    if (options.body) {
+      headers['Content-Type'] = 'application/json';
+    }
     const response = await fetch(url, {
       ...options,
       signal: AbortSignal.timeout(15_000), // 15 second timeout
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {

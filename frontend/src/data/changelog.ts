@@ -12,6 +12,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.10.1',
+    date: '2026-02-28',
+    fixed: [
+      'MCP search now works correctly',
+      'MCP delete operations for notes, tasks, folders, and tags now work correctly',
+    ],
+  },
+  {
     version: '1.10.0',
     date: '2026-02-27',
     changed: [
