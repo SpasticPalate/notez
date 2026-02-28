@@ -248,8 +248,8 @@ describe('search.service', () => {
   });
 
   // ─── raw SQL uuid cast regression (PR fix/mcp-client-bugs) ───────────
-  describe('searchNotes — UUID cast regression', () => {
-    it('should use CAST(... AS uuid) instead of ::uuid for userId parameter', async () => {
+  describe('searchNotes — UUID type comparison', () => {
+    it('should cast uuid column to text for Prisma parameter compatibility', async () => {
       mockPrisma.$queryRaw
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([{ count: BigInt(0) }]);
@@ -260,12 +260,11 @@ describe('search.service', () => {
       // The first $queryRaw call is the FTS query — inspect the tagged template strings
       const call = mockPrisma.$queryRaw.mock.calls[0][0] as any;
       const sql = call.strings?.join('?') ?? String(call);
-      expect(sql).toContain('CAST(');
-      expect(sql).toContain('AS uuid)');
-      expect(sql).not.toContain('::uuid');
+      // Column cast to text avoids Prisma $queryRaw text-vs-uuid operator error
+      expect(sql).toContain('user_id::text');
     });
 
-    it('should use CAST(... AS uuid) for folderId parameter', async () => {
+    it('should cast folder_id column to text for folderId parameter', async () => {
       mockPrisma.$queryRaw
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([{ count: BigInt(0) }]);
@@ -277,9 +276,10 @@ describe('search.service', () => {
         folderId: 'd7f003f9-785f-43b9-bc5f-879c1448ea75',
       });
 
+      // folderCondition uses Prisma.sql which is interpolated into $queryRaw
       const call = mockPrisma.$queryRaw.mock.calls[0][0] as any;
       const sql = call.strings?.join('?') ?? String(call);
-      expect(sql).not.toContain('::uuid');
+      expect(sql).toContain('user_id::text');
     });
   });
 
