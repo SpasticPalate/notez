@@ -60,7 +60,7 @@ export class SearchService {
 
     // Build folder condition using Prisma.sql for safe query composition
     const folderCondition = folderId
-      ? Prisma.sql`AND n.folder_id = CAST(${folderId} AS uuid)`
+      ? Prisma.sql`AND n.folder_id::text = ${folderId}`
       : Prisma.empty;
 
     let results: SearchResult[];
@@ -84,7 +84,7 @@ export class SearchService {
             'MaxWords=30, MinWords=15, ShortWord=3, HighlightAll=FALSE, MaxFragments=1'
           ) as snippet
         FROM notes n
-        WHERE n.user_id = CAST(${userId} AS uuid) ${folderCondition}
+        WHERE n.user_id::text = ${userId} ${folderCondition}
           AND n.search_vector @@ to_tsquery('english', ${sanitizedQuery})
           AND n.deleted = false
         ORDER BY rank DESC, n.updated_at DESC
@@ -95,7 +95,7 @@ export class SearchService {
       const countResult = await prisma.$queryRaw<[{ count: bigint }]>`
         SELECT COUNT(*) as count
         FROM notes n
-        WHERE n.user_id = CAST(${userId} AS uuid) ${folderCondition}
+        WHERE n.user_id::text = ${userId} ${folderCondition}
           AND n.search_vector @@ to_tsquery('english', ${sanitizedQuery})
           AND n.deleted = false
       `;
@@ -129,7 +129,7 @@ export class SearchService {
             ELSE n.title
           END as snippet
         FROM notes n
-        WHERE n.user_id = CAST(${userId} AS uuid) ${folderCondition}
+        WHERE n.user_id::text = ${userId} ${folderCondition}
           AND (n.title ILIKE ${likePattern} OR n.content ILIKE ${likePattern})
           AND n.deleted = false
         ORDER BY n.updated_at DESC
@@ -140,7 +140,7 @@ export class SearchService {
       const countResult = await prisma.$queryRaw<[{ count: bigint }]>`
         SELECT COUNT(*) as count
         FROM notes n
-        WHERE n.user_id = CAST(${userId} AS uuid) ${folderCondition}
+        WHERE n.user_id::text = ${userId} ${folderCondition}
           AND (n.title ILIKE ${likePattern} OR n.content ILIKE ${likePattern})
           AND n.deleted = false
       `;
