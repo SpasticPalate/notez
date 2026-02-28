@@ -1,0 +1,97 @@
+services:
+  # MinIO Object Storage (S3-compatible)
+  notez-minio:
+    image: minio/minio:latest
+    container_name: notez-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-notez}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?Please set MINIO_SECRET_KEY}
+    volumes:
+      - notez_minio:/data
+    networks:
+      - notez-network
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # PostgreSQL Database
+  notez-db:
+    image: postgres:16-alpine
+    container_name: notez-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-notez}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Please set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-notez}
+    volumes:
+      - notez_data:/var/lib/postgresql/data
+    networks:
+      - notez-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-notez}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API (serves both API and frontend static files)
+  # Migrations run automatically via docker-entrypoint.sh before app starts
+  notez-backend:
+    image: ghcr.io/spasticpalate/notez:main
+    pull_policy: always
+    container_name: notez-backend
+    restart: unless-stopped
+    ports:
+      - "5173:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-notez}:${POSTGRES_PASSWORD}@notez-db:5432/${POSTGRES_DB:-notez}?schema=public
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Please set JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Please set JWT_REFRESH_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Please set ENCRYPTION_KEY}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://notez.example.com}
+      COOKIE_SECRET: ${COOKIE_SECRET:-${JWT_REFRESH_SECRET}}
+      # Email Configuration (for password reset)
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@example.com}
+      APP_NAME: ${APP_NAME:-Notez}
+      APP_URL: ${APP_URL:-https://notez.example.com}
+      # MinIO Configuration
+      MINIO_ENDPOINT: notez-minio
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: false
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-notez}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET:-notez-images}
+    depends_on:
+      notez-db:
+        condition: service_healthy
+      notez-minio:
+        condition: service_healthy
+    networks:
+      - notez-network
+
+networks:
+  notez-network:
+    driver: bridge
+
+volumes:
+  notez_data:
+    name: notez_data
+    driver: local
+    driver_opts:
+      type: none
+      device: ${DATA_DIR:-/opt/notez}/data/postgres
+      o: bind
+  notez_minio:
+    name: notez_minio
+    driver: local
+    driver_opts:
+      type: none
+      device: ${DATA_DIR:-/opt/notez}/data/minio
+      o: bind

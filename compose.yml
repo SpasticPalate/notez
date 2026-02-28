@@ -1,0 +1,95 @@
+services:
+  # MinIO Object Storage (S3-compatible)
+  minio:
+    image: minio/minio:latest
+    container_name: notez-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: notez
+      MINIO_ROOT_PASSWORD: notez-secret
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # Console
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: notez-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: notez
+      POSTGRES_PASSWORD: notez
+      POSTGRES_DB: notez
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notez"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: notez-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://notez:notez@postgres:5432/notez?schema=public
+      JWT_ACCESS_SECRET: change-me-jwt-secret
+      JWT_REFRESH_SECRET: change-me-refresh-secret
+      ENCRYPTION_KEY: change-me-encryption-key-32chars
+      CORS_ORIGIN: http://localhost:5173
+      # MinIO Configuration
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: false
+      MINIO_ACCESS_KEY: notez
+      MINIO_SECRET_KEY: notez-secret
+      MINIO_BUCKET: notez-images
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/prisma:/app/prisma
+    command: sh -c "npx prisma migrate deploy && npm run dev"
+
+  # Frontend (for development)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: notez-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:3000
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  minio_data:

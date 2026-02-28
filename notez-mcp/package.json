@@ -1,0 +1,44 @@
+{
+  "name": "notez-mcp",
+  "version": "1.10.0",
+  "description": "MCP server for Notez — allows Claude Code to read and manage notes and tasks",
+  "type": "module",
+  "main": "build/index.js",
+  "bin": {
+    "notez-mcp": "build/index.js"
+  },
+  "files": [
+    "build/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SpasticPalate/notez.git",
+    "directory": "notez-mcp"
+  },
+  "keywords": [
+    "mcp",
+    "notez",
+    "notes",
+    "claude",
+    "ai"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.9.3"
+  }
+}

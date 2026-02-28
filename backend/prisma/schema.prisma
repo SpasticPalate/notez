@@ -1,0 +1,432 @@
+// Notez Database Schema
+// PostgreSQL with pgvector for future AI features
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  // DATABASE_URL can be:
+  // 1. Explicitly set as postgresql://user:pass@host:port/db
+  // 2. Auto-constructed from POSTGRES_USER, POSTGRES_PASSWORD, etc.
+  // See backend/src/lib/database-url.ts for construction logic
+  url      = env("DATABASE_URL")
+}
+
+// User accounts
+model User {
+  id                 String    @id @default(uuid())
+  username           String    @unique @db.VarChar(50)
+  email              String    @unique @db.VarChar(255)
+  passwordHash       String    @map("password_hash") @db.VarChar(255)
+  role               String    @default("user") @db.VarChar(20) // 'admin' or 'user'
+  isActive           Boolean   @default(true) @map("is_active")
+  isServiceAccount   Boolean   @default(false) @map("is_service_account")
+  mustChangePassword Boolean   @default(false) @map("must_change_password")
+  avatarUrl          String?   @map("avatar_url") @db.VarChar(255)
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  sessions            Session[]
+  folders             Folder[]
+  notes               Note[]
+  tags                Tag[]
+  tasks               Task[]
+  images              Image[]
+  aiSettings          UserAISettings?
+  passwordResetTokens PasswordResetToken[]
+  feedbackSubmissions FeedbackSubmission[]
+  notifications       Notification[]
+  sharedByMe          NoteShare[] @relation("sharedByUser")
+  sharedWithMe        NoteShare[] @relation("sharedWithUser")
+  apiTokens           ApiToken[]
+
+  @@index([isServiceAccount])
+  @@map("users")
+}
+
+// Session management for refresh tokens
+model Session {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  refreshToken String   @unique @map("refresh_token") @db.VarChar(500)
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// Folders for organizing notes
+model Folder {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  name      String   @db.VarChar(255)
+  icon      String   @default("folder") @db.VarChar(50) // Lucide icon name
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes Note[]
+  tasks Task[]
+
+  @@unique([userId, name])
+  @@map("folders")
+}
+
+// Notes
+model Note {
+  id           String                    @id @default(uuid())
+  userId       String                    @map("user_id")
+  folderId     String?                   @map("folder_id")
+  title        String                    @db.VarChar(500)
+  content      String?                   @db.Text
+  searchVector Unsupported("tsvector")?  @map("search_vector")
+  deleted      Boolean                   @default(false)
+  deletedAt    DateTime?                 @map("deleted_at")
+  createdAt    DateTime                  @default(now()) @map("created_at")
+  updatedAt    DateTime                  @updatedAt @map("updated_at")
+
+  // Relations
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder      Folder?    @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  tags        NoteTag[]
+  tasks       Task[]
+  images      Image[]
+  sourceLinks NoteLink[] @relation("sourceLinks")
+  shares      NoteShare[]
+  yjsState    NoteYjsState?
+
+  @@index([searchVector], type: Gin)
+  @@map("notes")
+}
+
+// Tags
+model Tag {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  name      String   @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes     NoteTag[]
+  taskTags  TaskTag[]
+
+  @@unique([userId, name])
+  @@map("tags")
+}
+
+// Note-Tag junction table
+model NoteTag {
+  noteId String @map("note_id")
+  tagId  String @map("tag_id")
+
+  // Relations
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([noteId, tagId])
+  @@map("note_tags")
+}
+
+// Tasks (standalone or linked to notes)
+model Task {
+  id          String      @id @default(uuid())
+  userId      String      @map("user_id")
+  title       String      @db.VarChar(500)
+  description String?     @db.Text
+  status      TaskStatus  @default(PENDING)
+  priority    Priority    @default(MEDIUM)
+  dueDate     DateTime?   @map("due_date")
+
+  // Note linkback (null for standalone tasks)
+  noteId      String?     @map("note_id")
+  noteTitle   String?     @map("note_title") @db.VarChar(500)
+
+  // Organization
+  folderId    String?     @map("folder_id")
+
+  // Timestamps
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  completedAt DateTime?   @map("completed_at")
+
+  // Relations
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note        Note?       @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  folder      Folder?     @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  tags        TaskTag[]
+  links       TaskLink[]
+
+  @@index([userId, status])
+  @@index([userId, dueDate])
+  @@index([userId, priority])
+  @@index([userId, createdAt])
+  @@index([noteId])
+  @@map("tasks")
+}
+
+// Task-Tag junction table
+model TaskTag {
+  taskId String @map("task_id")
+  tagId  String @map("tag_id")
+
+  // Relations
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, tagId])
+  @@map("task_tags")
+}
+
+// Task hyperlinks (external URLs attached to tasks)
+model TaskLink {
+  id        String   @id @default(uuid())
+  taskId    String   @map("task_id")
+  url       String   @db.VarChar(2048)
+  title     String?  @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@map("task_links")
+}
+
+// Task status enum
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// Task priority enum
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// System settings (key-value store)
+model SystemSetting {
+  key       String   @id @db.VarChar(100)
+  value     String?  @db.Text
+  encrypted Boolean  @default(false)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
+// User AI Settings (per-user AI provider configuration)
+model UserAISettings {
+  id               String   @id @default(uuid())
+  userId           String   @unique @map("user_id")
+  provider         String   @db.VarChar(20) // 'anthropic', 'openai', or 'gemini'
+  encryptedApiKey  String   @map("encrypted_api_key") @db.Text
+  model            String?  @db.VarChar(100)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_ai_settings")
+}
+
+// Image storage metadata
+model Image {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  noteId    String?  @map("note_id")
+  filename  String   @db.VarChar(255)
+  mimeType  String   @map("mime_type") @db.VarChar(50)
+  size      Int      // File size in bytes
+  width     Int?
+  height    Int?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note Note? @relation(fields: [noteId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([noteId])
+  @@map("images")
+}
+
+// Password reset tokens
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique @db.VarChar(100)
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+// Note links for wiki-style [[references]]
+model NoteLink {
+  id            String   @id @default(uuid())
+  sourceNoteId  String   @map("source_note_id")
+  targetKeyword String   @map("target_keyword") @db.VarChar(255)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  sourceNote Note @relation("sourceLinks", fields: [sourceNoteId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceNoteId, targetKeyword])
+  @@index([targetKeyword])
+  @@index([sourceNoteId])
+  @@map("note_links")
+}
+
+// Feedback submission types
+enum FeedbackType {
+  BUG
+  FEATURE
+}
+
+// Feedback submission status
+enum FeedbackStatus {
+  NEW
+  REVIEWED
+  APPROVED
+  PUBLISHED
+  DECLINED
+}
+
+// User feedback submissions (bug reports and feature requests)
+model FeedbackSubmission {
+  id              String          @id @default(uuid())
+  type            FeedbackType
+  title           String          @db.VarChar(100)
+  description     String          @db.Text
+  category        String?         @db.VarChar(50)
+  priority        String?         @db.VarChar(50)
+  status          FeedbackStatus  @default(NEW)
+  adminNotes      String?         @map("admin_notes") @db.Text
+
+  // GitHub integration
+  githubIssueUrl    String?       @map("github_issue_url") @db.VarChar(500)
+  githubIssueNumber Int?          @map("github_issue_number")
+
+  // AI enhancement cache (stores enhanced content as JSON)
+  enhancedContent   Json?         @map("enhanced_content")
+
+  // Shipped status for "User Requested" badge
+  shipped           Boolean       @default(false)
+  shippedAt         DateTime?     @map("shipped_at")
+
+  // User relation
+  userId          String          @map("user_id")
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  reviewedAt      DateTime?       @map("reviewed_at")
+  publishedAt     DateTime?       @map("published_at")
+
+  @@index([userId])
+  @@index([status])
+  @@index([type, status])
+  @@map("feedback_submissions")
+}
+
+// User notifications
+model Notification {
+  id        String    @id @default(uuid())
+  type      String    @db.VarChar(50)  // NEW_FEEDBACK, STATUS_CHANGE, etc.
+  title     String    @db.VarChar(200)
+  message   String?   @db.Text
+  isRead    Boolean   @default(false) @map("is_read")
+
+  // Link to related entity
+  linkType  String    @map("link_type") @db.VarChar(50)  // feedback, note, etc.
+  linkId    String    @map("link_id")
+
+  // Recipient
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  readAt    DateTime? @map("read_at")
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+// Share permission levels
+enum SharePermission {
+  VIEW
+  EDIT
+}
+
+// Note sharing - tracks who has access to shared notes
+model NoteShare {
+  id           String          @id @default(uuid())
+  noteId       String          @map("note_id")
+  ownerId      String          @map("owner_id")
+  sharedWithId String          @map("shared_with_id")
+  permission   SharePermission @default(VIEW)
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  note       Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  owner      User @relation("sharedByUser", fields: [ownerId], references: [id], onDelete: Cascade)
+  sharedWith User @relation("sharedWithUser", fields: [sharedWithId], references: [id], onDelete: Cascade)
+
+  @@unique([noteId, sharedWithId])
+  @@index([sharedWithId])
+  @@index([noteId])
+  @@map("note_shares")
+}
+
+// Yjs CRDT state for collaborative editing
+model NoteYjsState {
+  noteId    String   @id @map("note_id")
+  state     Bytes
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@map("note_yjs_state")
+}
+
+// API tokens for MCP and external integrations
+model ApiToken {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  name       String    @db.VarChar(100)
+  tokenHash  String    @unique @map("token_hash") @db.VarChar(64)
+  prefix     String    @db.VarChar(10)
+  scopes     String[]
+  lastUsedAt DateTime? @map("last_used_at")
+  expiresAt  DateTime? @map("expires_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  revokedAt  DateTime? @map("revoked_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tokenHash])
+  @@index([userId])
+  @@map("api_tokens")
+}

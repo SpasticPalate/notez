@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# Pre-commit hook to prevent direct commits to default/main branch
+# Based on CLAUDE.md workflow rules
+#
+# Installation:
+#   cp .githooks/pre-commit .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+#
+# Or configure git to use .githooks directory:
+#   git config core.hooksPath .githooks
+#
+
+# Get current branch name (handles detached HEAD gracefully)
+BRANCH=$(git branch --show-current)
+
+# Get the default branch name from remote 'origin'
+# Fallback to 'main' if it's not available
+DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@') || DEFAULT_BRANCH="main"
+
+if [ "$BRANCH" = "$DEFAULT_BRANCH" ]; then
+  echo ""
+  echo "❌ COMMIT BLOCKED: Cannot commit directly to $DEFAULT_BRANCH branch!"
+  echo ""
+  echo "From CLAUDE.md:"
+  echo "  'CRITICAL: You are FORBIDDEN from committing directly to the $DEFAULT_BRANCH branch.'"
+  echo ""
+  echo "Please create a feature branch:"
+  echo "  git checkout -b feature/your-feature-name"
+  echo ""
+  echo "Then commit your changes to the feature branch."
+  echo ""
+  exit 1
+fi
+
+exit 0

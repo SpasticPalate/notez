@@ -1,0 +1,242 @@
+/**
+ * Server-side TipTap utilities for converting between markdown, HTML, and Yjs documents.
+ * Mirrors the frontend's TipTap extension configuration (minus browser-only extensions).
+ */
+import { generateHTML, generateJSON } from '@tiptap/html';
+import StarterKit from '@tiptap/starter-kit';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import Link from '@tiptap/extension-link';
+import Typography from '@tiptap/extension-typography';
+import { marked } from 'marked';
+import TurndownService from 'turndown';
+import * as Y from 'yjs';
+
+// Server-side extensions (same as frontend minus Placeholder, ImageUpload, WikiLink)
+const extensions = [
+  StarterKit.configure({
+    // Note: history is left enabled server-side since this is for one-time conversion
+  } as any),
+  TaskList,
+  TaskItem.configure({
+    nested: true,
+  }),
+  Link.configure({
+    openOnClick: false,
+  }),
+  Typography,
+];
+
+// Configure marked (same as frontend)
+marked.use({
+  gfm: true,
+  breaks: true,
+});
+
+// Configure turndown (same as frontend)
+const turndownService = new TurndownService({
+  headingStyle: 'atx',
+  codeBlockStyle: 'fenced',
+  emDelimiter: '*',
+  strongDelimiter: '**',
+  bulletListMarker: '-',
+});
+
+// Custom rule for task items
+turndownService.addRule('taskListItems', {
+  filter: (node) => {
+    if (node.nodeName === 'LI') {
+      if (node.hasAttribute('data-type') && node.getAttribute('data-type') === 'taskItem') {
+        return true;
+      }
+      const hasCheckbox = node.querySelector('input[type="checkbox"]');
+      if (hasCheckbox) {
+        return true;
+      }
+    }
+    return false;
+  },
+  replacement: (content, node: any) => {
+    let isChecked = node.getAttribute('data-checked') === 'true';
+    const checkbox = node.querySelector('input[type="checkbox"]');
+    if (checkbox) {
+      isChecked = checkbox.hasAttribute('checked') || checkbox.checked;
+    }
+    const cleanContent = content
+      .replace(/<input[^>]*>/g, '')
+      .replace(/<label[^>]*>.*?<\/label>/g, '')
+      .trim();
+    return `- [${isChecked ? 'x' : ' '}] ${cleanContent}\n`;
+  },
+});
+
+/**
+ * Convert markdown content to a Yjs Y.Doc with TipTap-compatible XML fragment
+ */
+export function markdownToYDoc(markdown: string): Y.Doc {
+  const doc = new Y.Doc();
+
+  if (!markdown || !markdown.trim()) {
+    // Create empty doc with default fragment
+    const xmlFragment = doc.getXmlFragment('default');
+    const paragraph = new Y.XmlElement('paragraph');
+    xmlFragment.insert(0, [paragraph]);
+    return doc;
+  }
+
+  // Convert markdown -> HTML -> ProseMirror JSON
+  const html = marked.parse(markdown) as string;
+  const json = generateJSON(html, extensions);
+
+  // Convert ProseMirror JSON to Yjs XML fragment
+  const xmlFragment = doc.getXmlFragment('default');
+  prosemirrorJsonToYXml(json, xmlFragment);
+
+  return doc;
+}
+
+/**
+ * Convert a Yjs Y.Doc back to markdown
+ */
+export function yDocToMarkdown(doc: Y.Doc): string {
+  const xmlFragment = doc.getXmlFragment('default');
+
+  if (xmlFragment.length === 0) {
+    return '';
+  }
+
+  // Convert Yjs XML fragment to ProseMirror JSON
+  const json = yXmlToProsemirrorJson(xmlFragment);
+
+  // Convert ProseMirror JSON -> HTML -> Markdown
+  const html = generateHTML(json, extensions);
+  const markdown = turndownService.turndown(html);
+
+  return markdown;
+}
+
+/**
+ * Convert ProseMirror JSON document to Yjs XML elements
+ */
+function prosemirrorJsonToYXml(json: any, xmlFragment: Y.XmlFragment) {
+  if (!json || !json.content) return;
+
+  for (const node of json.content) {
+    const element = prosemirrorNodeToYXml(node);
+    if (element) {
+      xmlFragment.insert(xmlFragment.length, [element]);
+    }
+  }
+}
+
+function prosemirrorNodeToYXml(node: any): Y.XmlElement | Y.XmlText | null {
+  if (!node) return null;
+
+  if (node.type === 'text') {
+    const text = new Y.XmlText();
+    const attrs: any = {};
+    if (node.marks) {
+      for (const mark of node.marks) {
+        attrs[mark.type] = mark.attrs || {};
+      }
+    }
+    text.insert(0, node.text || '', Object.keys(attrs).length > 0 ? attrs : undefined);
+    return text;
+  }
+
+  const element = new Y.XmlElement(node.type);
+
+  // Set attributes
+  if (node.attrs) {
+    for (const [key, value] of Object.entries(node.attrs)) {
+      if (value !== null && value !== undefined) {
+        element.setAttribute(key, value as string);
+      }
+    }
+  }
+
+  // Add children
+  if (node.content) {
+    for (const child of node.content) {
+      const childElement = prosemirrorNodeToYXml(child);
+      if (childElement) {
+        element.insert(element.length, [childElement]);
+      }
+    }
+  }
+
+  return element;
+}
+
+/**
+ * Convert Yjs XML fragment to ProseMirror JSON
+ */
+function yXmlToProsemirrorJson(xmlFragment: Y.XmlFragment): any {
+  const content: any[] = [];
+
+  for (let i = 0; i < xmlFragment.length; i++) {
+    const child = xmlFragment.get(i);
+    const node = yXmlNodeToProsemirror(child);
+    if (node) {
+      content.push(node);
+    }
+  }
+
+  return {
+    type: 'doc',
+    content: content.length > 0 ? content : [{ type: 'paragraph' }],
+  };
+}
+
+function yXmlNodeToProsemirror(node: any): any {
+  if (node instanceof Y.XmlText) {
+    const text = node.toString();
+    if (!text) return null;
+
+    const result: any = { type: 'text', text };
+
+    // Convert Yjs formatting attributes to ProseMirror marks
+    const attrs = node.getAttributes();
+    if (Object.keys(attrs).length > 0) {
+      result.marks = Object.entries(attrs).map(([type, markAttrs]) => ({
+        type,
+        attrs: markAttrs && typeof markAttrs === 'object' && Object.keys(markAttrs as object).length > 0
+          ? markAttrs
+          : undefined,
+      }));
+    }
+
+    return result;
+  }
+
+  if (node instanceof Y.XmlElement) {
+    const result: any = {
+      type: node.nodeName,
+    };
+
+    // Convert attributes
+    const attrs = node.getAttributes();
+    if (Object.keys(attrs).length > 0) {
+      result.attrs = attrs;
+    }
+
+    // Convert children
+    if (node.length > 0) {
+      const content: any[] = [];
+      for (let i = 0; i < node.length; i++) {
+        const child = node.get(i);
+        const childNode = yXmlNodeToProsemirror(child);
+        if (childNode) {
+          content.push(childNode);
+        }
+      }
+      if (content.length > 0) {
+        result.content = content;
+      }
+    }
+
+    return result;
+  }
+
+  return null;
+}
