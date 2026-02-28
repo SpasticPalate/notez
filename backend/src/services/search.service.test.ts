@@ -247,6 +247,42 @@ describe('search.service', () => {
     });
   });
 
+  // ─── raw SQL uuid cast regression (PR fix/mcp-client-bugs) ───────────
+  describe('searchNotes — UUID cast regression', () => {
+    it('should use CAST(... AS uuid) instead of ::uuid for userId parameter', async () => {
+      mockPrisma.$queryRaw
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ count: BigInt(0) }]);
+      mockPrisma.note.findMany.mockResolvedValue([]);
+
+      await service.searchNotes({ query: 'test', userId: '22f41934-ae18-4390-a319-d4fc5e9a52c1' });
+
+      // The first $queryRaw call is the FTS query — inspect the tagged template strings
+      const call = mockPrisma.$queryRaw.mock.calls[0][0] as any;
+      const sql = call.strings?.join('?') ?? String(call);
+      expect(sql).toContain('CAST(');
+      expect(sql).toContain('AS uuid)');
+      expect(sql).not.toContain('::uuid');
+    });
+
+    it('should use CAST(... AS uuid) for folderId parameter', async () => {
+      mockPrisma.$queryRaw
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ count: BigInt(0) }]);
+      mockPrisma.note.findMany.mockResolvedValue([]);
+
+      await service.searchNotes({
+        query: 'test',
+        userId: '22f41934-ae18-4390-a319-d4fc5e9a52c1',
+        folderId: 'd7f003f9-785f-43b9-bc5f-879c1448ea75',
+      });
+
+      const call = mockPrisma.$queryRaw.mock.calls[0][0] as any;
+      const sql = call.strings?.join('?') ?? String(call);
+      expect(sql).not.toContain('::uuid');
+    });
+  });
+
   // ─── exported singleton ───────────────────────────────────────────────
   describe('searchService singleton', () => {
     it('should export a SearchService instance', () => {

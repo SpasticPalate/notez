@@ -1,6 +1,6 @@
 {
   "name": "notez-mcp",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "description": "MCP server for Notez — allows Claude Code to read and manage notes and tasks",
   "type": "module",
   "main": "build/index.js",
@@ -30,6 +30,7 @@
   ],
   "scripts": {
     "build": "tsc",
+    "test": "vitest run",
     "start": "node build/index.js",
     "prepublishOnly": "npm run build"
   },
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.1] - 2026-02-28
+
+### Fixed
+
+- **MCP search 500 error**: Fixed `operator does not exist: text = uuid` in search service raw SQL — replaced `::uuid` casts with `CAST(... AS uuid)` for Prisma parameter compatibility
+- **MCP DELETE operations failing**: Fixed MCP client sending `Content-Type: application/json` on DELETE requests with no body, causing 400 errors on delete note/task/folder/tag/unshare
+
+### Added
+
+- Test coverage for MCP client HTTP headers (vitest)
+- Regression tests for search service UUID cast
+
 ## [1.10.0] - 2026-02-27
 
 ### Changed
@@ -580,7 +592,8 @@ All success criteria from the MVP specification have been met:
 - Docker deployment support
 - Multi-user authentication
 
-[Unreleased]: https://github.com/SpasticPalate/notez/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/SpasticPalate/notez/compare/v1.10.1...HEAD
+[1.10.1]: https://github.com/SpasticPalate/notez/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/SpasticPalate/notez/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/SpasticPalate/notez/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/SpasticPalate/notez/compare/v1.7.0...v1.8.0

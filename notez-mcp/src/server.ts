@@ -8,7 +8,7 @@ import { NotezClient } from './client.js';
 export function createNotezServer(client: NotezClient): McpServer {
   const server = new McpServer({
     name: 'notez',
-    version: '1.9.0',
+    version: '1.10.1',
   });
 
   // ─── Notes (read) ───────────────────────────────────────────────────
