@@ -66,6 +66,22 @@ export class NotezClient {
     return this.request<NotezNote>(`/notes/by-title?${params}`);
   }
 
+  async listNotes(options?: {
+    folderId?: string | null;
+    tagId?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<NoteListResponse> {
+    const params = new URLSearchParams();
+    if (options?.folderId !== undefined) params.set('folderId', options.folderId === null ? 'null' : options.folderId);
+    if (options?.tagId) params.set('tagId', options.tagId);
+    if (options?.search) params.set('search', options.search);
+    if (options?.limit) params.set('limit', String(options.limit));
+    if (options?.offset) params.set('offset', String(options.offset));
+    return this.request<NoteListResponse>(`/notes?${params}`);
+  }
+
   async listRecentNotes(limit = 20): Promise<NoteListResponse> {
     const params = new URLSearchParams({ limit: String(limit) });
     return this.request<NoteListResponse>(`/notes/recent?${params}`);
@@ -105,6 +121,12 @@ export class NotezClient {
   async deleteNote(id: string): Promise<SuccessResponse> {
     return this.request<SuccessResponse>(`/notes/${id}`, {
       method: 'DELETE',
+    });
+  }
+
+  async restoreNote(id: string): Promise<SuccessResponse> {
+    return this.request<SuccessResponse>(`/notes/${id}/restore`, {
+      method: 'POST',
     });
   }
 
@@ -229,6 +251,13 @@ export class NotezClient {
   async unshareNote(noteId: string, shareId: string): Promise<SuccessResponse> {
     return this.request<SuccessResponse>(`/notes/${noteId}/shares/${shareId}`, {
       method: 'DELETE',
+    });
+  }
+
+  async updateSharePermission(noteId: string, shareId: string, permission: 'VIEW' | 'EDIT'): Promise<NotezShare> {
+    return this.request<NotezShare>(`/notes/${noteId}/shares/${shareId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ permission }),
     });
   }
 }

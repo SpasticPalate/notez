@@ -84,7 +84,34 @@ export function createNotezServer(client: NotezClient): McpServer {
   );
 
   server.registerTool(
-    'notez_list_recent',
+    'notez_list_notes',
+    {
+      description: 'List notes with optional filters. Filter by folder, tag, or search text. Returns paginated results.',
+      inputSchema: {
+        folderId: z.string().uuid().nullable().optional().describe('Filter by folder UUID, or null for unfiled notes'),
+        tagId: z.string().uuid().optional().describe('Filter by tag UUID'),
+        search: z.string().optional().describe('Search text to filter by'),
+        limit: z.number().min(1).max(100).default(50).describe('Max notes to return'),
+        offset: z.number().min(0).default(0).describe('Offset for pagination'),
+      },
+    },
+    async ({ folderId, tagId, search, limit, offset }) => {
+      try {
+        const result = await client.listNotes({ folderId, tagId, search, limit, offset });
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.registerTool(
+    'notez_list_recent_notes',
     {
       description: 'List recently modified notes, sorted by last update time.',
       inputSchema: {
@@ -219,7 +246,7 @@ export function createNotezServer(client: NotezClient): McpServer {
         description: z.string().optional().describe('Task description'),
         priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional()
           .describe('Task priority (default: MEDIUM)'),
-        dueDate: z.string().optional().describe('Due date (ISO 8601 datetime)'),
+        dueDate: z.string().datetime().optional().describe('Due date (ISO 8601 datetime, e.g. "2026-03-15T09:00:00Z")'),
         folderId: z.string().uuid().optional().describe('Folder UUID'),
         tags: z.array(z.string()).optional().describe('Tag names to attach'),
       },
@@ -227,31 +254,6 @@ export function createNotezServer(client: NotezClient): McpServer {
     async ({ title, description, priority, dueDate, folderId, tags }) => {
       try {
         const task = await client.createTask({ title, description, priority, dueDate, folderId, tags });
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify(task, null, 2) }],
-        };
-      } catch (error) {
-        return {
-          content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
-          isError: true,
-        };
-      }
-    }
-  );
-
-  server.registerTool(
-    'notez_update_task_status',
-    {
-      description: 'Update the status of an existing task.',
-      inputSchema: {
-        id: z.string().uuid().describe('Task UUID'),
-        status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'])
-          .describe('New task status'),
-      },
-    },
-    async ({ id, status }) => {
-      try {
-        const task = await client.updateTaskStatus(id, status);
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(task, null, 2) }],
         };
@@ -316,6 +318,29 @@ export function createNotezServer(client: NotezClient): McpServer {
     }
   );
 
+  server.registerTool(
+    'notez_restore_note',
+    {
+      description: 'Restore a note from trash (undo a delete).',
+      inputSchema: {
+        id: z.string().uuid().describe('Note UUID (must be in trash)'),
+      },
+    },
+    async ({ id }) => {
+      try {
+        const result = await client.restoreNote(id);
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
   // ─── Tasks (update/delete) ──────────────────────────────────────────
 
   server.registerTool(
@@ -330,7 +355,7 @@ export function createNotezServer(client: NotezClient): McpServer {
           .describe('New status'),
         priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional()
           .describe('New priority'),
-        dueDate: z.string().nullable().optional().describe('Due date (ISO 8601) or null to clear'),
+        dueDate: z.string().datetime().nullable().optional().describe('Due date (ISO 8601 datetime, e.g. "2026-03-15T09:00:00Z") or null to clear'),
         folderId: z.string().uuid().nullable().optional().describe('Folder UUID, or null to remove from folder'),
         tags: z.array(z.string()).optional().describe('REPLACES all existing tags — pass the full desired tag list. To add a tag, first read the task to get current tags, then include them all plus the new one.'),
       },
@@ -353,7 +378,7 @@ export function createNotezServer(client: NotezClient): McpServer {
   server.registerTool(
     'notez_delete_task',
     {
-      description: 'Delete a task permanently.',
+      description: 'Delete a task permanently. WARNING: This cannot be undone — the task is permanently removed, not moved to trash.',
       inputSchema: {
         id: z.string().uuid().describe('Task UUID'),
       },
@@ -378,7 +403,7 @@ export function createNotezServer(client: NotezClient): McpServer {
   server.registerTool(
     'notez_list_folders',
     {
-      description: 'List all folders with their note counts.',
+      description: 'List all folders with their note counts. Returns a JSON array. Use notez_list_notes with a folderId to see notes in a specific folder.',
       inputSchema: {},
     },
     async () => {
@@ -401,8 +426,8 @@ export function createNotezServer(client: NotezClient): McpServer {
     {
       description: 'Create a new folder.',
       inputSchema: {
-        name: z.string().describe('Folder name'),
-        icon: z.string().optional().describe('Lucide icon name (e.g. "briefcase", "code", "star"). Defaults to "folder".'),
+        name: z.string().max(255).describe('Folder name'),
+        icon: z.string().optional().describe('Lucide icon name. Defaults to "folder". Valid values: folder, folder-open, briefcase, home, star, heart, bookmark, file-text, code, terminal, book, archive, inbox, lightbulb, target, flag, calendar, clock, users, user, settings, camera, music, video, image, globe, map-pin, shopping-bag, palette, paintbrush, pencil, pen, pen-tool, flower, drama, coffee, utensils, gift, server, cpu, hard-drive, network, wifi, database, cloud, monitor, laptop, smartphone, gamepad-2, trophy, swords, dice-5, dollar-sign, credit-card, graduation-cap, brain, flask-conical, dumbbell, mountain, tree-pine, plane, mail, message-circle, lock, shield, headphones, tv, wrench'),
       },
     },
     async ({ name, icon }) => {
@@ -423,11 +448,11 @@ export function createNotezServer(client: NotezClient): McpServer {
   server.registerTool(
     'notez_update_folder',
     {
-      description: 'Rename a folder or change its icon.',
+      description: 'Rename a folder or change its icon. At least one of name or icon must be provided.',
       inputSchema: {
         id: z.string().uuid().describe('Folder UUID'),
-        name: z.string().optional().describe('New folder name'),
-        icon: z.string().optional().describe('New Lucide icon name'),
+        name: z.string().max(255).optional().describe('New folder name'),
+        icon: z.string().optional().describe('New Lucide icon name (see notez_create_folder for valid values)'),
       },
     },
     async ({ id, name, icon }) => {
@@ -543,7 +568,7 @@ export function createNotezServer(client: NotezClient): McpServer {
   server.registerTool(
     'notez_share_note',
     {
-      description: 'Share a note with another user by username or email.',
+      description: 'Share a note with another user by username or email. If the note is already shared with the user, returns an error — use notez_update_share to change permission instead.',
       inputSchema: {
         noteId: z.string().uuid().describe('Note UUID'),
         usernameOrEmail: z.string().describe('Username or email of the user to share with'),
@@ -569,7 +594,7 @@ export function createNotezServer(client: NotezClient): McpServer {
   server.registerTool(
     'notez_list_shares',
     {
-      description: 'List all shares for a note you own.',
+      description: 'List all shares for a note you own. Returns a JSON array of share objects.',
       inputSchema: {
         noteId: z.string().uuid().describe('Note UUID'),
       },
@@ -592,7 +617,7 @@ export function createNotezServer(client: NotezClient): McpServer {
   server.registerTool(
     'notez_unshare_note',
     {
-      description: 'Remove a share from a note (stop sharing with a user).',
+      description: 'Remove a share from a note (stop sharing with a user). To change permission level, use notez_update_share instead.',
       inputSchema: {
         noteId: z.string().uuid().describe('Note UUID'),
         shareId: z.string().uuid().describe('Share UUID (from notez_list_shares)'),
@@ -603,6 +628,31 @@ export function createNotezServer(client: NotezClient): McpServer {
         const result = await client.unshareNote(noteId, shareId);
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.registerTool(
+    'notez_update_share',
+    {
+      description: 'Update the permission level of an existing share (VIEW or EDIT).',
+      inputSchema: {
+        noteId: z.string().uuid().describe('Note UUID'),
+        shareId: z.string().uuid().describe('Share UUID (from notez_list_shares)'),
+        permission: z.enum(['VIEW', 'EDIT']).describe('New permission level'),
+      },
+    },
+    async ({ noteId, shareId, permission }) => {
+      try {
+        const share = await client.updateSharePermission(noteId, shareId, permission);
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(share, null, 2) }],
         };
       } catch (error) {
         return {

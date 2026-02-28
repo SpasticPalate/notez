@@ -16,9 +16,11 @@ export const changelog: ChangelogEntry[] = [
     date: '2026-02-27',
     added: [
       'Full MCP capabilities: Claude Code can now edit, delete, organize, tag, and share your notes and tasks',
+      'Browse notes by folder or tag via MCP',
       'Folder management via MCP: create, rename, and delete folders',
       'Tag management via MCP: list, rename, and delete tags',
       'Note sharing via MCP: share notes with other users directly from Claude Code',
+      'Restore deleted notes from trash via MCP',
     ],
   },
   {

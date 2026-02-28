@@ -3,11 +3,11 @@ import { authenticateApiToken, requireScope } from '../middleware/auth.middlewar
 import { validateQuery, validateParams, validateBody } from '../middleware/validate.middleware.js';
 import { z } from 'zod';
 import { searchService } from '../services/search.service.js';
-import { getNoteById, getNoteByTitle, listNotes, createNote, updateNote, deleteNote } from '../services/note.service.js';
+import { getNoteById, getNoteByTitle, listNotes, createNote, updateNote, deleteNote, restoreNote } from '../services/note.service.js';
 import { getTaskById, listTasks, createTask, updateTaskStatus, updateTask, deleteTask } from '../services/task.service.js';
 import { listFolders, createFolder, updateFolder, deleteFolder } from '../services/folder.service.js';
 import { listTags, renameTag, deleteTag } from '../services/tag.service.js';
-import { shareNote, listSharesForNote, unshareNote } from '../services/share.service.js';
+import { shareNote, listSharesForNote, unshareNote, updateSharePermission } from '../services/share.service.js';
 import { hashToken } from '../services/token.service.js';
 import { BadRequestError } from '../utils/errors.js';
 import { FOLDER_ICONS } from '../utils/validation.schemas.js';
@@ -65,12 +65,26 @@ const updateTaskStatusBody = z.object({
   status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']),
 });
 
+const listNotesQuery = z.object({
+  folderId: z.preprocess(
+    (val) => (val === 'null' ? null : val),
+    z.string().uuid().nullable()
+  ).optional(),
+  tagId: z.string().uuid().optional(),
+  search: z.string().max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
 const updateNoteBody = z.object({
   title: z.string().min(1).max(500).optional(),
   content: z.string().max(500000).optional(),
   folderId: z.string().uuid().nullable().optional(),
   tags: z.array(z.string().min(1).max(100)).max(50).optional(),
-});
+}).refine(
+  (data) => Object.values(data).some(v => v !== undefined),
+  { message: 'At least one field must be provided' }
+);
 
 const updateTaskBody = z.object({
   title: z.string().min(1).max(500).optional(),
@@ -80,7 +94,10 @@ const updateTaskBody = z.object({
   dueDate: z.string().datetime().nullable().optional(),
   folderId: z.string().uuid().nullable().optional(),
   tags: z.array(z.string().min(1).max(100)).max(50).optional(),
-});
+}).refine(
+  (data) => Object.values(data).some(v => v !== undefined),
+  { message: 'At least one field must be provided' }
+);
 
 const createFolderBody = z.object({
   name: z.string().min(1).max(255),
@@ -90,7 +107,10 @@ const createFolderBody = z.object({
 const updateFolderBody = z.object({
   name: z.string().min(1).max(255).optional(),
   icon: z.enum(FOLDER_ICONS).optional(),
-});
+}).refine(
+  (data) => Object.values(data).some(v => v !== undefined),
+  { message: 'At least one field must be provided' }
+);
 
 const folderIdParam = z.object({
   id: z.string().uuid(),
@@ -112,6 +132,10 @@ const shareNoteBody = z.object({
 const shareIdParam = z.object({
   id: z.string().uuid(),
   shareId: z.string().uuid(),
+});
+
+const updateSharePermissionBody = z.object({
+  permission: z.enum(['VIEW', 'EDIT']),
 });
 
 /**
@@ -212,6 +236,24 @@ export async function mcpRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // List notes with optional folder/tag/search filters
+  fastify.get(
+    '/notes',
+    { config: perTokenRateLimit, preHandler: [requireScope('read'), validateQuery(listNotesQuery)] },
+    async (request: FastifyRequest) => {
+      const userId = request.user!.userId;
+      const query = request.query as z.infer<typeof listNotesQuery>;
+
+      return listNotes(userId, {
+        folderId: query.folderId,
+        tagId: query.tagId,
+        search: query.search,
+        limit: query.limit,
+        offset: query.offset,
+      });
+    }
+  );
+
   // List recently modified notes
   fastify.get(
     '/notes/recent',
@@ -301,6 +343,18 @@ export async function mcpRoutes(fastify: FastifyInstance) {
       const { id } = request.params as { id: string };
 
       return deleteNote(id, userId);
+    }
+  );
+
+  // Restore a note from trash
+  fastify.post(
+    '/notes/:id/restore',
+    { config: perTokenRateLimit, preHandler: [requireScope('write'), validateParams(noteIdParam)] },
+    async (request: FastifyRequest) => {
+      const userId = request.user!.userId;
+      const { id } = request.params as { id: string };
+
+      return restoreNote(id, userId);
     }
   );
 
@@ -503,6 +557,19 @@ export async function mcpRoutes(fastify: FastifyInstance) {
       const { id } = request.params as { id: string };
 
       return listSharesForNote(id, userId);
+    }
+  );
+
+  // Update share permission
+  fastify.patch(
+    '/notes/:id/shares/:shareId',
+    { config: perTokenRateLimit, preHandler: [requireScope('write'), validateParams(shareIdParam), validateBody(updateSharePermissionBody)] },
+    async (request: FastifyRequest) => {
+      const userId = request.user!.userId;
+      const { id, shareId } = request.params as { id: string; shareId: string };
+      const { permission } = request.body as z.infer<typeof updateSharePermissionBody>;
+
+      return updateSharePermission(id, userId, shareId, permission);
     }
   );
 
