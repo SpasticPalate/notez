@@ -12,6 +12,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.13.0',
+    date: '2026-03-01',
+    added: [
+      'Change your username from Profile Settings',
+    ],
+    fixed: [
+      'Improved keyboard navigation and screen reader support across admin modals',
+      'Admin modals now close when clicking outside or pressing Escape, and auto-focus the first input',
+      'Service account profiles no longer show email and password sections',
+    ],
+  },
+  {
     version: '1.12.0',
     date: '2026-03-01',
     added: [

@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-03-01
+
+### Added
+
+- **Change username from Profile Settings**: Users can now edit their username inline from the profile header. Validates uniqueness (case-insensitive) and character rules. Backend: `PATCH /api/profile/username` with `changeUsernameSchema`.
+
+### Fixed
+
+- **Arrow-key navigation on segmented control**: Account type radio group in Create User modal now supports Left/Right arrow key navigation per WAI-ARIA radio pattern, with roving tabindex.
+- **"No email" copy mismatch**: Standardized "No email set" → "No email" across AdminPanel and ProfileSettings.
+- **Missing `htmlFor`/`id` on form labels**: Added matching `htmlFor`/`id` pairs to Username, Email, Password, Role, Token Name, and Reset Password fields across all admin modals.
+- **Frontend `usersApi.update` type mismatch**: Tightened type to `{ isActive?, mustChangePassword?, role? }` to match backend `updateUserSchema` (removed stale `username`/`email` fields).
+- **Reset Password & Token Management modals — dialog ARIA + focus trap + Escape**: Applied `role="dialog"`, `aria-modal`, `aria-labelledby`, focus trap, and Escape key handler to both modals (matching the existing Create User modal pattern).
+- **Service account ProfileSettings**: Email and Password sections are now hidden when the logged-in user is a service account.
+- **Accessible labels on icon-only buttons**: Added `aria-label` to all icon-only buttons in ProfileSettings and AdminPanel (username edit, save, cancel, close, avatar).
+- **Status messages announced to screen readers**: Error and success messages in ProfileSettings now use `role="alert"` and `role="status"`.
+
+### Security
+
+- **Username change rate limiting**: PATCH /api/profile/username limited to 5 changes per hour per user.
+- **Service accounts blocked from username change**: Returns 403 Forbidden.
+- **Race condition handled**: Prisma P2002 unique constraint violation caught as a fallback for the case-insensitive duplicate check.
+- **Reserved username denylist**: Prevents users from claiming names like `admin`, `system`, `root`, `api`, etc. Applied to create user and change username schemas (not initial setup).
+- **Case-insensitive unique index**: New migration adds `LOWER(username)` unique index to prevent "Admin" and "admin" from coexisting.
+
+### Changed
+
+- **Modal backdrop click-to-close**: Clicking outside a modal now dismisses it (Create User, Reset Password, Token Management).
+- **Auto-focus on modal open**: Create User focuses username input, Reset Password focuses password input, Token Management focuses close button.
+
 ## [1.12.0] - 2026-03-01
 
 ### Added

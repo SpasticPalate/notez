@@ -166,7 +166,7 @@ export const usersApi = {
     tokenExpiresIn?: string | null;
   }) => api.post('/api/users', data),
 
-  update: (id: string, data: { username?: string; email?: string; role?: string; isActive?: boolean }) =>
+  update: (id: string, data: { isActive?: boolean; mustChangePassword?: boolean; role?: string }) =>
     api.patch(`/api/users/${id}`, data),
 
   delete: (id: string) => api.delete(`/api/users/${id}`),
@@ -255,6 +255,8 @@ export const searchApi = {
 
 export const profileApi = {
   getProfile: () => api.get('/api/profile/me'),
+
+  changeUsername: (username: string) => api.patch('/api/profile/username', { username }),
 
   uploadAvatar: (file: File) => {
     const formData = new FormData();

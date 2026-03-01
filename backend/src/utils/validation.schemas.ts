@@ -14,6 +14,16 @@ const usernameSchema = z
   .max(50, 'Username must not exceed 50 characters')
   .regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens');
 
+// Reserved usernames that cannot be claimed by new or renamed users
+// Not applied to setupSchema (first admin may want to use "admin")
+export const RESERVED_USERNAMES = [
+  'admin', 'administrator', 'system', 'root', 'support', 'help',
+  'null', 'undefined', 'api', 'notez', 'moderator', 'mod',
+] as const;
+
+const reservedUsernameCheck = (val: string) =>
+  !RESERVED_USERNAMES.includes(val.toLowerCase() as typeof RESERVED_USERNAMES[number]);
+
 const emailSchema = z.string().email('Invalid email address');
 
 // Auth schemas
@@ -35,7 +45,7 @@ export const changePasswordSchema = z.object({
 
 // User management schemas (admin)
 export const createUserSchema = z.object({
-  username: usernameSchema,
+  username: usernameSchema.refine(reservedUsernameCheck, 'This username is reserved'),
   email: emailSchema.optional(),
   password: passwordSchema.optional(),
   role: z.enum(['admin', 'user']).default('user'),
@@ -99,6 +109,13 @@ export const resetPasswordSchema = z.object({
   token: z.string().min(1, 'Reset token is required'),
   newPassword: passwordSchema,
 });
+
+// Profile schemas
+export const changeUsernameSchema = z.object({
+  username: usernameSchema.refine(reservedUsernameCheck, 'This username is reserved'),
+});
+
+export type ChangeUsernameInput = z.infer<typeof changeUsernameSchema>;
 
 // Note schemas
 export const createNoteSchema = z.object({
