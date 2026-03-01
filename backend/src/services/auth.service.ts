@@ -377,16 +377,20 @@ export async function requestPasswordReset(email: string): Promise<void> {
   });
 
   // Send email with raw token (user needs raw token to reset)
-  const emailSent = await emailService.sendPasswordResetEmail(
-    user.email,
-    user.username,
-    rawToken
-  );
+  // Null guard: user was found by email so email should be non-null, but
+  // the column is now nullable for service accounts.
+  if (user.email) {
+    const emailSent = await emailService.sendPasswordResetEmail(
+      user.email,
+      user.username,
+      rawToken
+    );
 
-  if (!emailSent) {
-    // Log without revealing email address
-    console.warn('Failed to send password reset email');
-    // We don't throw an error to prevent revealing if email exists
+    if (!emailSent) {
+      // Log without revealing email address
+      console.warn('Failed to send password reset email');
+      // We don't throw an error to prevent revealing if email exists
+    }
   }
 }
 
@@ -473,7 +477,9 @@ export async function resetPassword(token: string, newPassword: string): Promise
   });
 
   // Send confirmation email (outside transaction)
-  await emailService.sendPasswordChangedEmail(result.email, result.username);
+  if (result.email) {
+    await emailService.sendPasswordChangedEmail(result.email, result.username);
+  }
 }
 
 /**
