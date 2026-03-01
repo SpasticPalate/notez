@@ -117,6 +117,11 @@ export async function login(data: LoginInput) {
     throw new Error('Invalid credentials');
   }
 
+  // Service accounts cannot log in via password — use API tokens instead
+  if (user.isServiceAccount) {
+    throw new Error('Invalid credentials');
+  }
+
   // Check if user is active
   if (!user.isActive) {
     throw new Error('Account is deactivated');
@@ -262,6 +267,11 @@ export async function changePassword(userId: string, data: ChangePasswordInput) 
 
   if (!user) {
     throw new Error('User not found');
+  }
+
+  // Service accounts cannot change passwords — they use API tokens
+  if (user.isServiceAccount) {
+    throw new Error('Service accounts do not use passwords');
   }
 
   // Verify current password

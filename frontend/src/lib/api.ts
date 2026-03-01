@@ -155,8 +155,16 @@ export const usersApi = {
 
   get: (id: string) => api.get(`/api/users/${id}`),
 
-  create: (data: { username: string; email: string; password: string; role?: string; isServiceAccount?: boolean }) =>
-    api.post('/api/users', data),
+  create: (data: {
+    username: string;
+    email: string;
+    password?: string;
+    role?: string;
+    isServiceAccount?: boolean;
+    tokenName?: string;
+    tokenScopes?: string[];
+    tokenExpiresIn?: string | null;
+  }) => api.post('/api/users', data),
 
   update: (id: string, data: { username?: string; email?: string; role?: string; isActive?: boolean }) =>
     api.patch(`/api/users/${id}`, data),
@@ -179,6 +187,15 @@ export const serviceAccountsApi = {
 
   listTasks: (params?: { limit?: number; offset?: number }) =>
     api.get('/api/admin/service-accounts/tasks', { params }),
+
+  listTokens: (id: string) =>
+    api.get(`/api/admin/service-accounts/${id}/tokens`),
+
+  createToken: (id: string, data: { name: string; scopes: string[]; expiresIn?: string | null }) =>
+    api.post(`/api/admin/service-accounts/${id}/tokens`, data),
+
+  revokeToken: (id: string, tokenId: string) =>
+    api.delete(`/api/admin/service-accounts/${id}/tokens/${tokenId}`),
 };
 
 export const systemApi = {

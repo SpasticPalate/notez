@@ -1,7 +1,10 @@
+import crypto from 'crypto';
 import { prisma } from '../lib/db.js';
 import { hashPassword } from './auth.service.js';
+import { createApiToken } from './token.service.js';
 import type { CreateUserInput, UpdateUserInput } from '../utils/validation.schemas.js';
 import { APP_VERSION, NODE_VERSION } from '../config/app.config.js';
+import { BadRequestError } from '../utils/errors.js';
 
 /** Common select fields for user queries */
 const userSelect = {
@@ -67,6 +70,8 @@ export async function listUsers(includeInactive = false) {
 
 /**
  * Create a new user (admin only)
+ * For service accounts: generates an unusable password hash and auto-creates an API token.
+ * Returns user object with optional `apiToken` field (raw token, shown once).
  */
 export async function createUser(data: CreateUserInput) {
   // Check if username or email already exists
@@ -85,8 +90,15 @@ export async function createUser(data: CreateUserInput) {
     }
   }
 
-  // Hash password
-  const passwordHash = await hashPassword(data.password);
+  const isServiceAccount = data.isServiceAccount || false;
+
+  let passwordHash: string;
+  if (isServiceAccount) {
+    // Generate unusable password hash — bcrypt never produces hashes starting with '!'
+    passwordHash = `!service-account-no-password:${crypto.randomBytes(16).toString('hex')}`;
+  } else {
+    passwordHash = await hashPassword(data.password!);
+  }
 
   // Create user
   const user = await prisma.user.create({
@@ -96,11 +108,22 @@ export async function createUser(data: CreateUserInput) {
       passwordHash,
       role: data.role || 'user',
       isActive: true,
-      isServiceAccount: data.isServiceAccount || false,
-      mustChangePassword: true, // Force password change on first login
+      isServiceAccount,
+      mustChangePassword: isServiceAccount ? false : true,
     },
     select: userSelect,
   });
+
+  // Auto-create API token for service accounts
+  if (isServiceAccount) {
+    const tokenResult = await createApiToken(user.id, {
+      name: data.tokenName || 'Default',
+      scopes: data.tokenScopes || ['read', 'write'],
+      expiresIn: data.tokenExpiresIn ?? null,
+    });
+
+    return { ...user, apiToken: tokenResult.rawToken };
+  }
 
   return user;
 }
@@ -156,6 +179,20 @@ export async function deleteUser(id: string) {
  * Reset user password (admin only)
  */
 export async function resetUserPassword(id: string, newPassword: string) {
+  // Check if user is a service account
+  const existingUser = await prisma.user.findUnique({
+    where: { id },
+    select: { isServiceAccount: true },
+  });
+
+  if (!existingUser) {
+    throw new Error('User not found');
+  }
+
+  if (existingUser.isServiceAccount) {
+    throw new BadRequestError('Cannot reset password for service accounts. Use API tokens instead.');
+  }
+
   // Hash new password
   const passwordHash = await hashPassword(newPassword);
 

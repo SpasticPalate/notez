@@ -12,6 +12,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.11.0',
+    date: '2026-03-01',
+    added: [
+      'Service accounts now use API tokens instead of passwords',
+      'Admins can manage API tokens for service accounts from the admin panel',
+    ],
+    fixed: [
+      'Admin password reset now works correctly',
+    ],
+  },
+  {
     version: '1.10.1',
     date: '2026-02-28',
     fixed: [

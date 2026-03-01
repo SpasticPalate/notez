@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-03-01
+
+### Added
+
+- **Service account token-based authentication**: Service accounts now use auto-generated API tokens instead of passwords. When creating a service account via the admin panel, an API token is generated and displayed once — no password required.
+- **Admin token management endpoints**: `GET/POST/DELETE /api/admin/service-accounts/:id/tokens` — admins can list, create, and revoke API tokens for service accounts
+- **Token management modal**: Admin panel now shows a "Manage Tokens" button for service accounts, replacing the "Reset Password" button
+
+### Fixed
+
+- **Admin reset-password bug**: Fixed admin password reset route using wrong Zod schema (`resetPasswordSchema` with `token` field instead of `adminResetPasswordSchema` with `newPassword` field), which caused 400 errors
+
+### Changed
+
+- **Service account login blocked**: Service accounts can no longer log in via username/password — they must use API tokens
+- **Service account password flows blocked**: `changePassword` and `resetUserPassword` now reject service accounts with clear error messages
+- **Create user validation**: Password is now conditional — required for regular users, forbidden for service accounts. Service accounts accept optional `tokenName`, `tokenScopes`, and `tokenExpiresIn` fields.
+
+### Security
+
+- Existing service account passwords nullified via data migration (replaced with unusable `!service-account-no-password:` prefix)
+
 ## [1.10.1] - 2026-02-28
 
 ### Fixed

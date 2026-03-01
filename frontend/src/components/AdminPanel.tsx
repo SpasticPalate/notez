@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { usersApi, systemApi } from '../lib/api';
-import { Users, UserPlus, Key, UserX, UserCheck, Server, Database, HardDrive, Bot } from 'lucide-react';
+import { usersApi, serviceAccountsApi, systemApi } from '../lib/api';
+import { Users, UserPlus, Key, UserX, UserCheck, Server, Database, HardDrive, Bot, Copy, Check, Plus, XCircle } from 'lucide-react';
 import { useToast } from './Toast';
 
 interface User {
@@ -29,6 +29,17 @@ interface SystemInfo {
   };
 }
 
+interface ApiToken {
+  id: string;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+  revokedAt: string | null;
+}
+
 export function AdminPanel() {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -44,11 +55,25 @@ export function AdminPanel() {
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState('user');
   const [newIsServiceAccount, setNewIsServiceAccount] = useState(false);
+  const [newTokenName, setNewTokenName] = useState('Default');
   const [createError, setCreateError] = useState('');
+
+  // Created token display
+  const [createdToken, setCreatedToken] = useState<string | null>(null);
+  const [tokenCopied, setTokenCopied] = useState(false);
 
   // Reset password form
   const [resetPassword, setResetPassword] = useState('');
   const [resetError, setResetError] = useState('');
+
+  // Token management modal
+  const [tokenManageUserId, setTokenManageUserId] = useState<string | null>(null);
+  const [tokens, setTokens] = useState<ApiToken[]>([]);
+  const [tokensLoading, setTokensLoading] = useState(false);
+  const [showCreateToken, setShowCreateToken] = useState(false);
+  const [newTokenNameManage, setNewTokenNameManage] = useState('');
+  const [newTokenCreated, setNewTokenCreated] = useState<string | null>(null);
+  const [newTokenCopied, setNewTokenCopied] = useState(false);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -91,24 +116,47 @@ export function AdminPanel() {
     setCreateError('');
 
     try {
-      await usersApi.create({
+      const payload: Parameters<typeof usersApi.create>[0] = {
         username: newUsername,
         email: newEmail,
-        password: newPassword,
         role: newRole,
         isServiceAccount: newIsServiceAccount,
-      });
+      };
 
-      setNewUsername('');
-      setNewEmail('');
-      setNewPassword('');
-      setNewRole('user');
-      setNewIsServiceAccount(false);
-      setShowCreateModal(false);
+      if (newIsServiceAccount) {
+        payload.tokenName = newTokenName || 'Default';
+        payload.tokenScopes = ['read', 'write'];
+      } else {
+        payload.password = newPassword;
+      }
+
+      const response = await usersApi.create(payload);
+
+      // If service account was created, show the token
+      if (response.data.apiToken) {
+        setCreatedToken(response.data.apiToken);
+        setTokenCopied(false);
+        // Don't close modal yet — user must see the token
+      } else {
+        resetCreateForm();
+        setShowCreateModal(false);
+      }
       loadUsers();
     } catch (err: any) {
       setCreateError(err.response?.data?.message || 'Failed to create user');
     }
+  };
+
+  const resetCreateForm = () => {
+    setNewUsername('');
+    setNewEmail('');
+    setNewPassword('');
+    setNewRole('user');
+    setNewIsServiceAccount(false);
+    setNewTokenName('Default');
+    setCreatedToken(null);
+    setTokenCopied(false);
+    setCreateError('');
   };
 
   const handleToggleActive = async (userId: string, currentlyActive: boolean) => {
@@ -141,6 +189,65 @@ export function AdminPanel() {
       showToast('Password reset successfully', 'success');
     } catch (err: any) {
       setResetError(err.response?.data?.message || 'Failed to reset password');
+    }
+  };
+
+  const copyToClipboard = async (text: string, setCopied: (v: boolean) => void) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      showToast('Failed to copy to clipboard', 'error');
+    }
+  };
+
+  // Token management
+  const loadTokens = async (userId: string) => {
+    setTokensLoading(true);
+    try {
+      const response = await serviceAccountsApi.listTokens(userId);
+      setTokens(response.data.tokens);
+    } catch (error) {
+      if (import.meta.env.DEV) console.error('Failed to load tokens:', error);
+      showToast('Failed to load tokens', 'error');
+    } finally {
+      setTokensLoading(false);
+    }
+  };
+
+  const handleOpenTokenManage = (userId: string) => {
+    setTokenManageUserId(userId);
+    setShowCreateToken(false);
+    setNewTokenCreated(null);
+    setNewTokenNameManage('');
+    loadTokens(userId);
+  };
+
+  const handleCreateToken = async () => {
+    if (!tokenManageUserId || !newTokenNameManage.trim()) return;
+    try {
+      const response = await serviceAccountsApi.createToken(tokenManageUserId, {
+        name: newTokenNameManage.trim(),
+        scopes: ['read', 'write'],
+      });
+      setNewTokenCreated(response.data.rawToken);
+      setNewTokenCopied(false);
+      setShowCreateToken(false);
+      loadTokens(tokenManageUserId);
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to create token', 'error');
+    }
+  };
+
+  const handleRevokeToken = async (tokenId: string) => {
+    if (!tokenManageUserId) return;
+    try {
+      await serviceAccountsApi.revokeToken(tokenManageUserId, tokenId);
+      showToast('Token revoked', 'success');
+      loadTokens(tokenManageUserId);
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to revoke token', 'error');
     }
   };
 
@@ -277,13 +384,23 @@ export function AdminPanel() {
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setShowResetModal(u.id)}
-                    className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md"
-                    title="Reset Password"
-                  >
-                    <Key className="w-4 h-4" />
-                  </button>
+                  {u.isServiceAccount ? (
+                    <button
+                      onClick={() => handleOpenTokenManage(u.id)}
+                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md"
+                      title="Manage Tokens"
+                    >
+                      <Key className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setShowResetModal(u.id)}
+                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md"
+                      title="Reset Password"
+                    >
+                      <Key className="w-4 h-4" />
+                    </button>
+                  )}
 
                   <button
                     onClick={() => handleToggleActive(u.id, u.isActive)}
@@ -307,103 +424,160 @@ export function AdminPanel() {
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Create New User</h3>
+            {createdToken ? (
+              // Token display after service account creation
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">API Token Created</h3>
+                <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md text-sm text-yellow-800 dark:text-yellow-300">
+                  Copy this token now. It cannot be retrieved again.
+                </div>
+                <div className="relative">
+                  <code className="block w-full p-3 bg-gray-100 dark:bg-gray-700 rounded-md text-sm font-mono text-gray-900 dark:text-white break-all select-all">
+                    {createdToken}
+                  </code>
+                  <button
+                    onClick={() => copyToClipboard(createdToken, setTokenCopied)}
+                    className="absolute top-2 right-2 p-1.5 rounded-md bg-white dark:bg-gray-600 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-500"
+                    title="Copy token"
+                    aria-label="Copy token to clipboard"
+                  >
+                    {tokenCopied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4 text-gray-600 dark:text-gray-300" />}
+                  </button>
+                </div>
+                <button
+                  onClick={() => {
+                    resetCreateForm();
+                    setShowCreateModal(false);
+                  }}
+                  className="w-full mt-4 py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              // Normal create user form
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Create New User</h3>
 
-            {createError && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-sm text-red-800 dark:text-red-400">
-                {createError}
+                {createError && (
+                  <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-sm text-red-800 dark:text-red-400">
+                    {createError}
+                  </div>
+                )}
+
+                <form onSubmit={handleCreateUser} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Username</label>
+                    <input
+                      type="text"
+                      required
+                      value={newUsername}
+                      onChange={(e) => setNewUsername(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email</label>
+                    <input
+                      type="email"
+                      required
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {!newIsServiceAccount && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        Temporary Password
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Min 8 chars, 1 uppercase, 1 number"
+                      />
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        User will be required to change this on first login
+                      </p>
+                    </div>
+                  )}
+
+                  {newIsServiceAccount && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        Token Name
+                      </label>
+                      <input
+                        type="text"
+                        value={newTokenName}
+                        onChange={(e) => setNewTokenName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Default"
+                      />
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        An API token will be generated automatically
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label htmlFor="new-user-role" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Role</label>
+                    <select
+                      id="new-user-role"
+                      name="new-user-role"
+                      value={newRole}
+                      onChange={(e) => setNewRole(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="user">User</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newIsServiceAccount}
+                        onChange={(e) => {
+                          setNewIsServiceAccount(e.target.checked);
+                          if (e.target.checked) setNewPassword('');
+                        }}
+                        className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Service Account</span>
+                    </label>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 ml-6">
+                      Service accounts use API tokens instead of passwords. This cannot be changed after creation.
+                    </p>
+                  </div>
+
+                  <div className="flex space-x-3 mt-6">
+                    <button
+                      type="submit"
+                      className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    >
+                      {newIsServiceAccount ? 'Create Service Account' : 'Create User'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetCreateForm();
+                        setShowCreateModal(false);
+                      }}
+                      className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
               </div>
             )}
-
-            <form onSubmit={handleCreateUser} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Username</label>
-                <input
-                  type="text"
-                  required
-                  value={newUsername}
-                  onChange={(e) => setNewUsername(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email</label>
-                <input
-                  type="email"
-                  required
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                  Temporary Password
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Min 8 chars, 1 uppercase, 1 number"
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  User will be required to change this on first login
-                </p>
-              </div>
-
-              <div>
-                <label htmlFor="new-user-role" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Role</label>
-                <select
-                  id="new-user-role"
-                  name="new-user-role"
-                  value={newRole}
-                  onChange={(e) => setNewRole(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={newIsServiceAccount}
-                    onChange={(e) => setNewIsServiceAccount(e.target.checked)}
-                    className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Service Account</span>
-                </label>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 ml-6">
-                  Service accounts are for automated agents. This cannot be changed after creation.
-                </p>
-              </div>
-
-              <div className="flex space-x-3 mt-6">
-                <button
-                  type="submit"
-                  className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  Create User
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCreateModal(false);
-                    setCreateError('');
-                    setNewIsServiceAccount(false);
-                  }}
-                  className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
@@ -458,6 +632,135 @@ export function AdminPanel() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Token Management Modal */}
+      {tokenManageUserId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Manage API Tokens</h3>
+              <button
+                onClick={() => {
+                  setTokenManageUserId(null);
+                  setNewTokenCreated(null);
+                  setShowCreateToken(false);
+                }}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Newly created token display */}
+            {newTokenCreated && (
+              <div className="mb-4">
+                <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md text-sm text-yellow-800 dark:text-yellow-300 mb-2">
+                  Copy this token now. It cannot be retrieved again.
+                </div>
+                <div className="relative">
+                  <code className="block w-full p-3 bg-gray-100 dark:bg-gray-700 rounded-md text-sm font-mono text-gray-900 dark:text-white break-all select-all">
+                    {newTokenCreated}
+                  </code>
+                  <button
+                    onClick={() => copyToClipboard(newTokenCreated, setNewTokenCopied)}
+                    className="absolute top-2 right-2 p-1.5 rounded-md bg-white dark:bg-gray-600 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-500"
+                    title="Copy token"
+                    aria-label="Copy token to clipboard"
+                  >
+                    {newTokenCopied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4 text-gray-600 dark:text-gray-300" />}
+                  </button>
+                </div>
+                <button
+                  onClick={() => setNewTokenCreated(null)}
+                  className="mt-2 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {/* Create token form */}
+            {showCreateToken ? (
+              <div className="mb-4 p-3 border border-gray-200 dark:border-gray-600 rounded-md">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Token Name</label>
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    value={newTokenNameManage}
+                    onChange={(e) => setNewTokenNameManage(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. CI/CD Pipeline"
+                  />
+                  <button
+                    onClick={handleCreateToken}
+                    disabled={!newTokenNameManage.trim()}
+                    className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Create
+                  </button>
+                  <button
+                    onClick={() => setShowCreateToken(false)}
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-sm rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowCreateToken(true)}
+                className="mb-4 flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create Token</span>
+              </button>
+            )}
+
+            {/* Token list */}
+            {tokensLoading ? (
+              <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">Loading tokens...</div>
+            ) : tokens.length === 0 ? (
+              <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">No tokens found</div>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {tokens.map((token) => (
+                  <div
+                    key={token.id}
+                    className={`p-3 border rounded-md text-sm ${
+                      token.revokedAt
+                        ? 'border-gray-200 dark:border-gray-700 opacity-50'
+                        : 'border-gray-200 dark:border-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-medium text-gray-900 dark:text-white">{token.name}</span>
+                        <span className="ml-2 font-mono text-gray-500 dark:text-gray-400 text-xs">{token.prefix}...</span>
+                      </div>
+                      {!token.revokedAt && (
+                        <button
+                          onClick={() => handleRevokeToken(token.id)}
+                          className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 hover:underline"
+                        >
+                          Revoke
+                        </button>
+                      )}
+                    </div>
+                    <div className="mt-1 flex items-center space-x-3 text-xs text-gray-500 dark:text-gray-400">
+                      <span>Scopes: {token.scopes.join(', ')}</span>
+                      {token.lastUsedAt && <span>Last used: {new Date(token.lastUsedAt).toLocaleDateString()}</span>}
+                      {token.revokedAt && <span className="text-red-500">Revoked</span>}
+                      {token.expiresAt && !token.revokedAt && (
+                        <span>Expires: {new Date(token.expiresAt).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
