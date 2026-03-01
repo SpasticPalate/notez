@@ -150,6 +150,55 @@ describe('validation.schemas', () => {
         role: 'superadmin',
       });
     });
+
+    it('should require password for regular users', () => {
+      expectInvalid(createUserSchema, {
+        username: 'user1',
+        email: 'u@test.com',
+      });
+    });
+
+    it('should reject password when isServiceAccount is true', () => {
+      expectInvalid(createUserSchema, {
+        username: 'bot1',
+        email: 'bot@test.com',
+        password: 'Password1!',
+        isServiceAccount: true,
+      });
+    });
+
+    it('should accept service account without password', () => {
+      const result = createUserSchema.parse({
+        username: 'bot1',
+        email: 'bot@test.com',
+        isServiceAccount: true,
+      });
+      expect(result.isServiceAccount).toBe(true);
+      expect(result.password).toBeUndefined();
+    });
+
+    it('should reject service account with admin role', () => {
+      expectInvalid(createUserSchema, {
+        username: 'bot1',
+        email: 'bot@test.com',
+        isServiceAccount: true,
+        role: 'admin',
+      });
+    });
+
+    it('should accept service account with token config fields', () => {
+      const result = createUserSchema.parse({
+        username: 'bot1',
+        email: 'bot@test.com',
+        isServiceAccount: true,
+        tokenName: 'CI Pipeline',
+        tokenScopes: ['read', 'write'],
+        tokenExpiresIn: '90d',
+      });
+      expect(result.tokenName).toBe('CI Pipeline');
+      expect(result.tokenScopes).toEqual(['read', 'write']);
+      expect(result.tokenExpiresIn).toBe('90d');
+    });
   });
 
   // ─── Password reset schemas ───────────────────────────────────────────

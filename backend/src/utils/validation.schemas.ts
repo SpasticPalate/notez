@@ -37,9 +37,38 @@ export const changePasswordSchema = z.object({
 export const createUserSchema = z.object({
   username: usernameSchema,
   email: emailSchema,
-  password: passwordSchema,
+  password: passwordSchema.optional(),
   role: z.enum(['admin', 'user']).default('user'),
   isServiceAccount: z.boolean().default(false),
+  // Token config fields for service account creation
+  tokenName: z.string().min(1).max(100).optional(),
+  tokenScopes: z.array(z.enum(['read', 'write'])).min(1).max(2).optional(),
+  tokenExpiresIn: z.enum(['30d', '90d', '1y']).nullable().optional(),
+}).superRefine((data, ctx) => {
+  if (data.isServiceAccount) {
+    if (data.password) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Service accounts do not use passwords',
+        path: ['password'],
+      });
+    }
+    if (data.role === 'admin') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Service accounts cannot have admin role',
+        path: ['role'],
+      });
+    }
+  } else {
+    if (!data.password) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Password is required',
+        path: ['password'],
+      });
+    }
+  }
 });
 
 export const updateUserSchema = z.object({

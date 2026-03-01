@@ -1,12 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import * as userService from '../services/user.service.js';
+import { AppError } from '../utils/errors.js';
 import { authenticateToken, requireAdmin } from '../middleware/auth.middleware.js';
 import { validateBody, validateParams, validateQuery } from '../middleware/validate.middleware.js';
 import {
   createUserSchema,
   updateUserSchema,
-  resetPasswordSchema,
+  adminResetPasswordSchema,
 } from '../utils/validation.schemas.js';
 
 // Param schemas
@@ -118,11 +119,24 @@ export async function usersRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
-        const user = await userService.createUser(request.body as any);
+        const result = await userService.createUser(request.body as any);
+
+        // If service account, result includes apiToken
+        if ('apiToken' in result) {
+          const { apiToken, ...user } = result;
+          return reply
+            .header('Cache-Control', 'no-store')
+            .status(201)
+            .send({
+              message: 'Service account created successfully. Store the API token securely — it cannot be retrieved again.',
+              user,
+              apiToken,
+            });
+        }
 
         return reply.status(201).send({
           message: 'User created successfully',
-          user,
+          user: result,
         });
       } catch (error) {
         fastify.log.error(error);
@@ -228,13 +242,13 @@ export async function usersRoutes(fastify: FastifyInstance) {
     {
       preHandler: [
         validateParams(userIdParamSchema),
-        validateBody(resetPasswordSchema),
+        validateBody(adminResetPasswordSchema),
       ],
     },
     async (request, reply) => {
       try {
         const params = request.params as z.infer<typeof userIdParamSchema>;
-        const body = request.body as z.infer<typeof resetPasswordSchema>;
+        const body = request.body as z.infer<typeof adminResetPasswordSchema>;
 
         const user = await userService.resetUserPassword(params.id, body.newPassword);
 
@@ -244,6 +258,13 @@ export async function usersRoutes(fastify: FastifyInstance) {
         };
       } catch (error) {
         fastify.log.error(error);
+
+        if (error instanceof AppError) {
+          return reply.status(error.statusCode).send({
+            error: error.name,
+            message: error.message,
+          });
+        }
 
         if (error instanceof Error && error.message.includes('not found')) {
           return reply.status(404).send({

@@ -39,6 +39,19 @@ vi.mock('./auth.service.js', () => ({
   hashPassword: vi.fn().mockResolvedValue('hashed-password'),
 }));
 
+// Mock token service for createApiToken
+vi.mock('./token.service.js', () => ({
+  createApiToken: vi.fn().mockResolvedValue({
+    id: 'token-1',
+    name: 'Default',
+    prefix: 'ntez_xxxx',
+    scopes: ['read', 'write'],
+    expiresAt: null,
+    createdAt: new Date(),
+    rawToken: 'ntez_test-raw-token',
+  }),
+}));
+
 // Mock app config
 vi.mock('../config/app.config.js', () => ({
   APP_VERSION: '1.2.3',
@@ -245,7 +258,7 @@ describe('user.service', () => {
         isServiceAccount: true,
       } as any);
 
-      await createUser({ ...newUserData, isServiceAccount: true });
+      await createUser({ ...newUserData, isServiceAccount: true } as any);
 
       expect(mockPrisma.user.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -265,6 +278,72 @@ describe('user.service', () => {
           data: expect.objectContaining({ isServiceAccount: false }),
         })
       );
+    });
+
+    describe('service account creation', () => {
+      const serviceAccountData = {
+        username: 'bot-agent',
+        email: 'bot@test.com',
+        isServiceAccount: true,
+      } as any;
+
+      it('should generate unusable password hash for service accounts', async () => {
+        const { hashPassword } = await import('./auth.service.js');
+        mockPrisma.user.findFirst.mockResolvedValue(null);
+        mockPrisma.user.create.mockResolvedValue({
+          ...baseUser,
+          id: 'sa-1',
+          isServiceAccount: true,
+        } as any);
+
+        await createUser(serviceAccountData);
+
+        // hashPassword should NOT be called for service accounts
+        expect(hashPassword).not.toHaveBeenCalled();
+        // The password hash should start with the unusable prefix
+        expect(mockPrisma.user.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              passwordHash: expect.stringMatching(/^!service-account-no-password:/),
+            }),
+          })
+        );
+      });
+
+      it('should set mustChangePassword to false for service accounts', async () => {
+        mockPrisma.user.findFirst.mockResolvedValue(null);
+        mockPrisma.user.create.mockResolvedValue({
+          ...baseUser,
+          isServiceAccount: true,
+        } as any);
+
+        await createUser(serviceAccountData);
+
+        expect(mockPrisma.user.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ mustChangePassword: false }),
+          })
+        );
+      });
+
+      it('should auto-create API token and return it', async () => {
+        const { createApiToken } = await import('./token.service.js');
+        mockPrisma.user.findFirst.mockResolvedValue(null);
+        mockPrisma.user.create.mockResolvedValue({
+          ...baseUser,
+          id: 'sa-1',
+          isServiceAccount: true,
+        } as any);
+
+        const result = await createUser(serviceAccountData);
+
+        expect(createApiToken).toHaveBeenCalledWith('sa-1', {
+          name: 'Default',
+          scopes: ['read', 'write'],
+          expiresIn: null,
+        });
+        expect((result as any).apiToken).toBe('ntez_test-raw-token');
+      });
     });
   });
 
@@ -337,6 +416,7 @@ describe('user.service', () => {
   describe('resetUserPassword', () => {
     it('should hash new password and use $transaction', async () => {
       const { hashPassword } = await import('./auth.service.js');
+      mockPrisma.user.findUnique.mockResolvedValue({ isServiceAccount: false } as any);
       const updatedUser = { ...baseUser, mustChangePassword: true };
       mockPrisma.$transaction.mockResolvedValue([updatedUser, { count: 1 }] as any);
 
@@ -348,12 +428,27 @@ describe('user.service', () => {
     });
 
     it('should set mustChangePassword to true after reset', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ isServiceAccount: false } as any);
       const updatedUser = { ...baseUser, mustChangePassword: true };
       mockPrisma.$transaction.mockResolvedValue([updatedUser, { count: 0 }] as any);
 
       const result = await resetUserPassword('user-1', 'AnyPass1!');
 
       expect(result.mustChangePassword).toBe(true);
+    });
+
+    it('should throw when user not found', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(resetUserPassword('user-999', 'Pass1!')).rejects.toThrow('User not found');
+    });
+
+    it('should throw for service accounts', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ isServiceAccount: true } as any);
+
+      await expect(resetUserPassword('sa-1', 'Pass1!')).rejects.toThrow(
+        'Cannot reset password for service accounts'
+      );
     });
   });
 

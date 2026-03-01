@@ -153,10 +153,24 @@ describe('auth.service', () => {
       ).rejects.toThrow('Invalid credentials');
     });
 
+    it('should throw for service accounts (prevents password login)', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue({
+        id: 'sa-1',
+        isActive: true,
+        isServiceAccount: true,
+        passwordHash: 'some-hash',
+      } as any);
+
+      await expect(
+        login({ usernameOrEmail: 'bot-agent', password: 'Pass1!' })
+      ).rejects.toThrow('Invalid credentials');
+    });
+
     it('should throw for deactivated user', async () => {
       mockPrisma.user.findFirst.mockResolvedValue({
         id: 'user-1',
         isActive: false,
+        isServiceAccount: false,
         passwordHash: 'hash',
       } as any);
 
@@ -374,10 +388,26 @@ describe('auth.service', () => {
       ).rejects.toThrow('User not found');
     });
 
+    it('should throw for service accounts', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 'sa-1',
+        isServiceAccount: true,
+        passwordHash: 'some-hash',
+      } as any);
+
+      await expect(
+        changePassword('sa-1', {
+          currentPassword: 'Old1!',
+          newPassword: 'New1!aaa',
+        })
+      ).rejects.toThrow('Service accounts do not use passwords');
+    });
+
     it('should throw if current password is wrong', async () => {
       const hash = await hashPassword('RealPassword1!');
       mockPrisma.user.findUnique.mockResolvedValue({
         id: 'user-1',
+        isServiceAccount: false,
         passwordHash: hash,
       } as any);
 

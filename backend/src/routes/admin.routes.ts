@@ -1,13 +1,16 @@
 import type { FastifyInstance } from 'fastify';
 import { authenticateToken, requireAdmin } from '../middleware/auth.middleware.js';
-import { validateParams, validateQuery } from '../middleware/validate.middleware.js';
-import { uuidParamSchema } from '../utils/validation.schemas.js';
+import { validateParams, validateQuery, validateBody } from '../middleware/validate.middleware.js';
+import { uuidParamSchema, createApiTokenSchema } from '../utils/validation.schemas.js';
 import {
   listServiceAccounts,
   listServiceAccountNotes,
   getServiceAccountNote,
   listServiceAccountTasks,
 } from '../services/user.service.js';
+import { listApiTokens, createApiToken, revokeApiToken } from '../services/token.service.js';
+import { AppError } from '../utils/errors.js';
+import { prisma } from '../lib/db.js';
 import { z } from 'zod';
 
 const paginationQuerySchema = z.object({
@@ -106,6 +109,137 @@ export async function adminRoutes(fastify: FastifyInstance) {
         return reply.status(500).send({
           error: 'Internal Server Error',
           message: 'Failed to list service account tasks',
+        });
+      }
+    }
+  );
+
+  // ─── Service Account Token Management ──────────────────────────────
+
+  const serviceAccountTokenParamSchema = z.object({
+    id: z.string().uuid('Invalid service account ID'),
+    tokenId: z.string().uuid('Invalid token ID'),
+  });
+
+  /** Verify the target user is a service account */
+  async function verifyServiceAccount(id: string) {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, isServiceAccount: true },
+    });
+    if (!user) {
+      throw new AppError('Service account not found', 404);
+    }
+    if (!user.isServiceAccount) {
+      throw new AppError('User is not a service account', 400);
+    }
+    return user;
+  }
+
+  // List tokens for a service account
+  fastify.get(
+    '/admin/service-accounts/:id/tokens',
+    {
+      preHandler: validateParams(uuidParamSchema),
+    },
+    async (request, reply) => {
+      try {
+        const { id } = request.params as { id: string };
+        await verifyServiceAccount(id);
+        const tokens = await listApiTokens(id);
+        return { tokens };
+      } catch (error) {
+        if (error instanceof AppError) {
+          return reply.status(error.statusCode).send({
+            error: error.name,
+            message: error.message,
+          });
+        }
+        fastify.log.error(error);
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: 'Failed to list tokens',
+        });
+      }
+    }
+  );
+
+  // Create a new token for a service account
+  fastify.post(
+    '/admin/service-accounts/:id/tokens',
+    {
+      preHandler: [
+        validateParams(uuidParamSchema),
+        validateBody(createApiTokenSchema),
+      ],
+    },
+    async (request, reply) => {
+      try {
+        const { id } = request.params as { id: string };
+        await verifyServiceAccount(id);
+        const body = request.body as z.infer<typeof createApiTokenSchema>;
+        const token = await createApiToken(id, {
+          name: body.name,
+          scopes: body.scopes,
+          expiresIn: body.expiresIn ?? null,
+        });
+        return reply
+          .header('Cache-Control', 'no-store')
+          .status(201)
+          .send({
+            message: 'Token created successfully. Store it securely — it cannot be retrieved again.',
+            token: {
+              id: token.id,
+              name: token.name,
+              prefix: token.prefix,
+              scopes: token.scopes,
+              expiresAt: token.expiresAt,
+              createdAt: token.createdAt,
+            },
+            rawToken: token.rawToken,
+          });
+      } catch (error) {
+        if (error instanceof AppError) {
+          return reply.status(error.statusCode).send({
+            error: error.name,
+            message: error.message,
+          });
+        }
+        fastify.log.error(error);
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: 'Failed to create token',
+        });
+      }
+    }
+  );
+
+  // Revoke a token for a service account
+  fastify.delete(
+    '/admin/service-accounts/:id/tokens/:tokenId',
+    {
+      preHandler: validateParams(serviceAccountTokenParamSchema),
+    },
+    async (request, reply) => {
+      try {
+        const { id, tokenId } = request.params as { id: string; tokenId: string };
+        await verifyServiceAccount(id);
+        const result = await revokeApiToken(tokenId, id);
+        return {
+          message: 'Token revoked successfully',
+          token: result,
+        };
+      } catch (error) {
+        if (error instanceof AppError) {
+          return reply.status(error.statusCode).send({
+            error: error.name,
+            message: error.message,
+          });
+        }
+        fastify.log.error(error);
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: 'Failed to revoke token',
         });
       }
     }
