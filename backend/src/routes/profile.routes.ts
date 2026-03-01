@@ -4,6 +4,7 @@ import { authenticateToken } from '../middleware/auth.middleware.js';
 import { storageService } from '../services/storage.service.js';
 import { prisma } from '../lib/db.js';
 import { validateImageContent, ALLOWED_IMAGE_MIME_TYPES } from '../utils/image.utils.js';
+import { changeUsernameSchema } from '../utils/validation.schemas.js';
 
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -11,6 +12,15 @@ const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
 const avatarUploadRateLimitConfig = {
   max: 5, // 5 avatar uploads per 5 minutes
   timeWindow: '5 minutes',
+  keyGenerator: (request: FastifyRequest) => {
+    return request.user?.userId || request.ip;
+  },
+};
+
+// Rate limit config for username changes
+const usernameChangeRateLimitConfig = {
+  max: 5, // 5 username changes per hour
+  timeWindow: '1 hour',
   keyGenerator: (request: FastifyRequest) => {
     return request.user?.userId || request.ip;
   },
@@ -251,4 +261,90 @@ export async function profileRoutes(fastify: FastifyInstance) {
       });
     }
   });
+
+  /**
+   * PATCH /api/profile/username
+   * Change the current user's username
+   */
+  fastify.patch(
+    '/profile/username',
+    {
+      config: {
+        rateLimit: usernameChangeRateLimitConfig,
+      },
+    },
+    async (request, reply) => {
+      try {
+        if (!request.user) {
+          return reply.status(401).send({
+            error: 'Unauthorized',
+            message: 'Authentication required',
+          });
+        }
+
+        // Service accounts cannot change their username
+        const currentUser = await prisma.user.findUnique({
+          where: { id: request.user.userId },
+          select: { isServiceAccount: true },
+        });
+        if (currentUser?.isServiceAccount) {
+          return reply.status(403).send({
+            error: 'Forbidden',
+            message: 'Service accounts cannot change their username',
+          });
+        }
+
+        const parsed = changeUsernameSchema.safeParse(request.body);
+        if (!parsed.success) {
+          return reply.status(400).send({
+            error: 'Bad Request',
+            message: 'Invalid request data',
+            details: parsed.error.issues.map(i => ({ message: i.message })),
+          });
+        }
+
+        const { username } = parsed.data;
+
+        // Check for duplicate username (case-insensitive)
+        const existing = await prisma.user.findFirst({
+          where: {
+            username: { equals: username, mode: 'insensitive' },
+            id: { not: request.user.userId },
+          },
+        });
+
+        if (existing) {
+          return reply.status(409).send({
+            error: 'Conflict',
+            message: 'Username is already taken',
+          });
+        }
+
+        try {
+          const updated = await prisma.user.update({
+            where: { id: request.user.userId },
+            data: { username },
+            select: { username: true },
+          });
+
+          return { username: updated.username };
+        } catch (error: any) {
+          // Handle race condition: another request claimed the username between findFirst and update
+          if (error.code === 'P2002') {
+            return reply.status(409).send({
+              error: 'Conflict',
+              message: 'Username is already taken',
+            });
+          }
+          throw error;
+        }
+      } catch (error) {
+        fastify.log.error(error);
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: 'Failed to change username',
+        });
+      }
+    }
+  );
 }

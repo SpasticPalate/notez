@@ -75,12 +75,37 @@ export function AdminPanel() {
   const [newTokenCreated, setNewTokenCreated] = useState<string | null>(null);
   const [newTokenCopied, setNewTokenCopied] = useState(false);
 
-  // Create modal ref for focus trap
+  // Modal refs for focus trap
   const createModalRef = useRef<HTMLDivElement>(null);
+  const resetModalRef = useRef<HTMLDivElement>(null);
+  const tokenModalRef = useRef<HTMLDivElement>(null);
 
-  // Escape key handler and focus trap for create modal
+  // Reusable focus trap for modals
+  const trapFocus = useCallback((e: KeyboardEvent, ref: React.RefObject<HTMLDivElement | null>) => {
+    if (e.key !== 'Tab' || !ref.current) return;
+    const focusable = ref.current.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }, []);
+
+  // Escape key handler, focus trap, and auto-focus for create modal
   useEffect(() => {
     if (!showCreateModal) return;
+
+    // Auto-focus the username input on open
+    requestAnimationFrame(() => {
+      document.getElementById('create-username')?.focus();
+    });
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -88,27 +113,59 @@ export function AdminPanel() {
         setShowCreateModal(false);
         return;
       }
-      // Focus trap
-      if (e.key === 'Tab' && createModalRef.current) {
-        const focusable = createModalRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusable.length === 0) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
+      trapFocus(e, createModalRef);
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showCreateModal]);
+  }, [showCreateModal, trapFocus]);
+
+  // Escape key handler, focus trap, and auto-focus for reset password modal
+  useEffect(() => {
+    if (!showResetModal) return;
+
+    // Auto-focus the password input on open
+    requestAnimationFrame(() => {
+      document.getElementById('reset-password')?.focus();
+    });
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowResetModal(null);
+        setResetError('');
+        setResetPassword('');
+        return;
+      }
+      trapFocus(e, resetModalRef);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showResetModal, trapFocus]);
+
+  // Escape key handler, focus trap, and auto-focus for token management modal
+  useEffect(() => {
+    if (!tokenManageUserId) return;
+
+    // Auto-focus the close button on open
+    requestAnimationFrame(() => {
+      const firstFocusable = tokenModalRef.current?.querySelector<HTMLElement>('button');
+      firstFocusable?.focus();
+    });
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setTokenManageUserId(null);
+        setNewTokenCreated(null);
+        setShowCreateToken(false);
+        return;
+      }
+      trapFocus(e, tokenModalRef);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [tokenManageUserId, trapFocus]);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -470,7 +527,10 @@ export function AdminPanel() {
 
       {/* Create User Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={(e) => { if (e.target === e.currentTarget) { resetCreateForm(); setShowCreateModal(false); } }}
+        >
           <div
             ref={createModalRef}
             role="dialog"
@@ -516,11 +576,29 @@ export function AdminPanel() {
                 </h3>
 
                 {/* Account type segmented control */}
-                <div role="radiogroup" aria-label="Account type" className="mb-4 flex rounded-md border border-gray-300 dark:border-gray-600 overflow-hidden">
+                <div
+                  role="radiogroup"
+                  aria-label="Account type"
+                  className="mb-4 flex rounded-md border border-gray-300 dark:border-gray-600 overflow-hidden"
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                      e.preventDefault();
+                      const radios = (e.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[role="radio"]');
+                      const idx = Array.from(radios).indexOf(e.target as HTMLElement);
+                      if (idx === -1) return;
+                      const next = e.key === 'ArrowRight'
+                        ? radios[(idx + 1) % radios.length]
+                        : radios[(idx - 1 + radios.length) % radios.length];
+                      next.focus();
+                      next.click();
+                    }
+                  }}
+                >
                   <button
                     type="button"
                     role="radio"
                     aria-checked={accountType === 'user'}
+                    tabIndex={accountType === 'user' ? 0 : -1}
                     onClick={() => {
                       setAccountType('user');
                       setNewPassword('');
@@ -538,6 +616,7 @@ export function AdminPanel() {
                     type="button"
                     role="radio"
                     aria-checked={accountType === 'service-account'}
+                    tabIndex={accountType === 'service-account' ? 0 : -1}
                     onClick={() => {
                       setAccountType('service-account');
                       setNewPassword('');
@@ -563,8 +642,9 @@ export function AdminPanel() {
 
                 <form onSubmit={handleCreateUser} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Username</label>
+                    <label htmlFor="create-username" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Username</label>
                     <input
+                      id="create-username"
                       type="text"
                       required
                       value={newUsername}
@@ -576,8 +656,9 @@ export function AdminPanel() {
                   {accountType === 'user' && (
                     <>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email</label>
+                        <label htmlFor="create-email" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email</label>
                         <input
+                          id="create-email"
                           type="email"
                           required
                           value={newEmail}
@@ -587,10 +668,11 @@ export function AdminPanel() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        <label htmlFor="create-password" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                           Temporary Password
                         </label>
                         <input
+                          id="create-password"
                           type="password"
                           required
                           value={newPassword}
@@ -604,10 +686,10 @@ export function AdminPanel() {
                       </div>
 
                       <div>
-                        <label htmlFor="new-user-role" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Role</label>
+                        <label htmlFor="create-role" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Role</label>
                         <select
-                          id="new-user-role"
-                          name="new-user-role"
+                          id="create-role"
+                          name="create-role"
                           value={newRole}
                           onChange={(e) => setNewRole(e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -621,10 +703,11 @@ export function AdminPanel() {
 
                   {accountType === 'service-account' && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                      <label htmlFor="create-token-name" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                         Token Name
                       </label>
                       <input
+                        id="create-token-name"
                         type="text"
                         value={newTokenName}
                         onChange={(e) => setNewTokenName(e.target.value)}
@@ -664,9 +747,18 @@ export function AdminPanel() {
 
       {/* Reset Password Modal */}
       {showResetModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Reset User Password</h3>
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowResetModal(null); setResetError(''); setResetPassword(''); } }}
+        >
+          <div
+            ref={resetModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reset-modal-title"
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6"
+          >
+            <h3 id="reset-modal-title" className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Reset User Password</h3>
 
             {resetError && (
               <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-sm text-red-800 dark:text-red-400">
@@ -676,10 +768,11 @@ export function AdminPanel() {
 
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                <label htmlFor="reset-password" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                   New Temporary Password
                 </label>
                 <input
+                  id="reset-password"
                   type="password"
                   required
                   value={resetPassword}
@@ -718,10 +811,19 @@ export function AdminPanel() {
 
       {/* Token Management Modal */}
       {tokenManageUserId && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full p-6">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={(e) => { if (e.target === e.currentTarget) { setTokenManageUserId(null); setNewTokenCreated(null); setShowCreateToken(false); } }}
+        >
+          <div
+            ref={tokenModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="token-modal-title"
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full p-6"
+          >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Manage API Tokens</h3>
+              <h3 id="token-modal-title" className="text-lg font-semibold text-gray-900 dark:text-white">Manage API Tokens</h3>
               <button
                 onClick={() => {
                   setTokenManageUserId(null);
@@ -729,6 +831,7 @@ export function AdminPanel() {
                   setShowCreateToken(false);
                 }}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                aria-label="Close token management"
               >
                 <XCircle className="w-5 h-5" />
               </button>
@@ -765,9 +868,10 @@ export function AdminPanel() {
             {/* Create token form */}
             {showCreateToken ? (
               <div className="mb-4 p-3 border border-gray-200 dark:border-gray-600 rounded-md">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Token Name</label>
+                <label htmlFor="manage-token-name" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Token Name</label>
                 <div className="flex space-x-2">
                   <input
+                    id="manage-token-name"
                     type="text"
                     value={newTokenNameManage}
                     onChange={(e) => setNewTokenNameManage(e.target.value)}

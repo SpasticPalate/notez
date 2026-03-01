@@ -2,14 +2,16 @@ import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { profileApi } from '../lib/api';
-import { User, Mail, Lock, Loader2, Check, Camera, Trash2 } from 'lucide-react';
+import { User, Mail, Lock, Loader2, Check, Camera, Trash2, Pencil, X } from 'lucide-react';
 import { useConfirm } from './ConfirmDialog';
 
 export function ProfileSettings() {
-  const { user, refreshAuth } = useAuth();
+  const { user, updateUser, refreshAuth } = useAuth();
   const confirm = useConfirm();
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [email, setEmail] = useState(user?.email ?? '');
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [newUsername, setNewUsername] = useState(user?.username ?? '');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -39,6 +41,31 @@ export function ProfileSettings() {
       setIsEditingEmail(false);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to update email');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleUsernameSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await profileApi.changeUsername(newUsername.trim());
+      updateUser({ username: response.data.username });
+      setIsEditingUsername(false);
+      setSuccess('Username updated successfully');
+      // Refresh auth to get a new JWT with the updated username
+      await refreshAuth();
+    } catch (err: any) {
+      const details = err.response?.data?.details;
+      if (Array.isArray(details) && details.length > 0) {
+        setError(details.map((d: { message?: string }) => d.message).join(', '));
+      } else {
+        setError(err.response?.data?.message || 'Failed to change username');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -182,7 +209,60 @@ export function ProfileSettings() {
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{user.username}</h3>
+            {isEditingUsername ? (
+              <form onSubmit={handleUsernameSave} className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value)}
+                  className="px-2 py-1 text-lg font-semibold border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  autoFocus
+                  disabled={isSaving}
+                  aria-label="New username"
+                  minLength={3}
+                  maxLength={50}
+                  pattern="^[a-zA-Z0-9_-]+$"
+                  title="Letters, numbers, underscores, and hyphens only"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={isSaving || newUsername.trim() === user.username}
+                  className="p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Save username"
+                >
+                  {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditingUsername(false);
+                    setNewUsername(user.username);
+                    setError('');
+                  }}
+                  className="p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+                  aria-label="Cancel editing"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </form>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{user.username}</h3>
+                <button
+                  onClick={() => {
+                    setNewUsername(user.username);
+                    setIsEditingUsername(true);
+                    setError('');
+                    setSuccess('');
+                  }}
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-md"
+                  aria-label="Edit username"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {user.role === 'admin' ? 'Administrator' : 'User'}
             </p>
@@ -195,114 +275,118 @@ export function ProfileSettings() {
 
       {/* Status Messages */}
       {error && (
-        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-md text-sm text-red-800 dark:text-red-200">
+        <div role="alert" className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-md text-sm text-red-800 dark:text-red-200">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 rounded-md text-sm text-green-800 dark:text-green-200">
+        <div role="status" className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 rounded-md text-sm text-green-800 dark:text-green-200">
           {success}
         </div>
       )}
 
-      {/* Email Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex items-center space-x-3 mb-4">
-          <Mail className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Email Address</h3>
+      {/* Email Section (hidden for service accounts) */}
+      {!user.isServiceAccount && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center space-x-3 mb-4">
+            <Mail className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Email Address</h3>
+          </div>
+
+          {isEditingEmail ? (
+            <form onSubmit={handleEmailSave} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                  New Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="your@email.com"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  You'll need to verify your new email address.
+                </p>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditingEmail(false);
+                    setEmail(user.email ?? '');
+                    setError('');
+                  }}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving || email === user.email}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Save</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-900 dark:text-white">{user.email || <span className="italic text-gray-400">No email</span>}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Your email is used for account recovery and notifications.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsEditingEmail(true)}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                Change
+              </button>
+            </div>
+          )}
         </div>
+      )}
 
-        {isEditingEmail ? (
-          <form onSubmit={handleEmailSave} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                New Email Address
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                placeholder="your@email.com"
-              />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                You'll need to verify your new email address.
-              </p>
-            </div>
+      {/* Password Section (hidden for service accounts) */}
+      {!user.isServiceAccount && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center space-x-3 mb-4">
+            <Lock className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Password</h3>
+          </div>
 
-            <div className="flex space-x-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsEditingEmail(false);
-                  setEmail(user.email ?? '');
-                  setError('');
-                }}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSaving || email === user.email}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Saving...</span>
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    <span>Save</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        ) : (
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-900 dark:text-white">{user.email || <span className="italic text-gray-400">No email set</span>}</p>
+              <p className="text-gray-900 dark:text-white">••••••••••••</p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Your email is used for account recovery and notifications.
+                Last changed: Unknown
               </p>
             </div>
-            <button
-              onClick={() => setIsEditingEmail(true)}
+            <Link
+              to="/change-password"
               className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
             >
-              Change
-            </button>
+              Change Password
+            </Link>
           </div>
-        )}
-      </div>
-
-      {/* Password Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex items-center space-x-3 mb-4">
-          <Lock className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Password</h3>
         </div>
-
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-gray-900 dark:text-white">••••••••••••</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Last changed: Unknown
-            </p>
-          </div>
-          <Link
-            to="/change-password"
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            Change Password
-          </Link>
-        </div>
-      </div>
+      )}
 
       {/* Account Info */}
       <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700 p-6">

@@ -24,6 +24,8 @@ import {
   createShareSchema,
   updateSharePermissionSchema,
   createFeedbackSchema,
+  changeUsernameSchema,
+  RESERVED_USERNAMES,
   uuidParamSchema,
 } from './validation.schemas.js';
 
@@ -222,6 +224,19 @@ describe('validation.schemas', () => {
         expect(emailIssue).toBeDefined();
         expect(emailIssue.message).toBe('Email is required for regular users');
       }
+    });
+
+    it('should reject reserved usernames', () => {
+      expectInvalid(createUserSchema, {
+        username: 'admin',
+        email: 'admin@example.com',
+        password: 'Password1!',
+      });
+      expectInvalid(createUserSchema, {
+        username: 'System',
+        email: 'system@example.com',
+        password: 'Password1!',
+      });
     });
   });
 
@@ -614,6 +629,47 @@ describe('validation.schemas', () => {
     it('should coerce boolean for overdue', () => {
       const result = listTasksQuerySchema.parse({ overdue: 'true' });
       expect(result.overdue).toBe(true);
+    });
+  });
+
+  // ─── changeUsernameSchema ─────────────────────────────────────────────
+  describe('changeUsernameSchema', () => {
+    it('should accept a valid username', () => {
+      expectValid(changeUsernameSchema, { username: 'new-user_123' });
+    });
+
+    it('should accept minimum-length username (3 chars)', () => {
+      expectValid(changeUsernameSchema, { username: 'abc' });
+    });
+
+    it('should reject username shorter than 3 characters', () => {
+      expectInvalid(changeUsernameSchema, { username: 'ab' });
+    });
+
+    it('should reject username with invalid characters', () => {
+      expectInvalid(changeUsernameSchema, { username: 'user name' });
+      expectInvalid(changeUsernameSchema, { username: 'user@name' });
+      expectInvalid(changeUsernameSchema, { username: 'user.name' });
+    });
+
+    it('should reject username exceeding 50 characters', () => {
+      expectInvalid(changeUsernameSchema, { username: 'a'.repeat(51) });
+    });
+
+    it('should reject empty username', () => {
+      expectInvalid(changeUsernameSchema, { username: '' });
+    });
+
+    it('should reject missing username field', () => {
+      expectInvalid(changeUsernameSchema, {});
+    });
+
+    it('should reject reserved usernames (case-insensitive)', () => {
+      expectInvalid(changeUsernameSchema, { username: 'admin' });
+      expectInvalid(changeUsernameSchema, { username: 'Admin' });
+      expectInvalid(changeUsernameSchema, { username: 'SYSTEM' });
+      expectInvalid(changeUsernameSchema, { username: 'root' });
+      expectInvalid(changeUsernameSchema, { username: 'notez' });
     });
   });
 });
