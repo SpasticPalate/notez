@@ -283,7 +283,6 @@ describe('user.service', () => {
     describe('service account creation', () => {
       const serviceAccountData = {
         username: 'bot-agent',
-        email: 'bot@test.com',
         isServiceAccount: true,
       } as any;
 
@@ -343,6 +342,43 @@ describe('user.service', () => {
           expiresIn: null,
         });
         expect((result as any).apiToken).toBe('ntez_test-raw-token');
+      });
+
+      it('should skip email in duplicate check when email is undefined', async () => {
+        mockPrisma.user.findFirst.mockResolvedValue(null);
+        mockPrisma.user.create.mockResolvedValue({
+          ...baseUser,
+          id: 'sa-2',
+          isServiceAccount: true,
+          email: null,
+        } as any);
+
+        await createUser({ username: 'bot-no-email', isServiceAccount: true } as any);
+
+        // The OR clause should only contain username, not email
+        expect(mockPrisma.user.findFirst).toHaveBeenCalledWith({
+          where: {
+            OR: [{ username: 'bot-no-email' }],
+          },
+        });
+      });
+
+      it('should pass null email to Prisma for service accounts without email', async () => {
+        mockPrisma.user.findFirst.mockResolvedValue(null);
+        mockPrisma.user.create.mockResolvedValue({
+          ...baseUser,
+          id: 'sa-3',
+          isServiceAccount: true,
+          email: null,
+        } as any);
+
+        await createUser({ username: 'bot-null-email', isServiceAccount: true } as any);
+
+        expect(mockPrisma.user.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ email: null }),
+          })
+        );
       });
     });
   });

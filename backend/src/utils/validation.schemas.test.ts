@@ -199,6 +199,30 @@ describe('validation.schemas', () => {
       expect(result.tokenScopes).toEqual(['read', 'write']);
       expect(result.tokenExpiresIn).toBe('90d');
     });
+
+    it('should accept service account without email', () => {
+      const result = createUserSchema.parse({
+        username: 'bot2',
+        isServiceAccount: true,
+      });
+      expect(result.isServiceAccount).toBe(true);
+      expect(result.email).toBeUndefined();
+    });
+
+    it('should reject regular user without email with specific message', () => {
+      try {
+        createUserSchema.parse({
+          username: 'user2',
+          password: 'Password1!',
+        });
+        expect.fail('Should have thrown');
+      } catch (err: any) {
+        const issues = err.issues || err.errors;
+        const emailIssue = issues.find((i: any) => i.path?.includes('email'));
+        expect(emailIssue).toBeDefined();
+        expect(emailIssue.message).toBe('Email is required for regular users');
+      }
+    });
   });
 
   // ─── Password reset schemas ───────────────────────────────────────────

@@ -75,17 +75,20 @@ export async function listUsers(includeInactive = false) {
  */
 export async function createUser(data: CreateUserInput) {
   // Check if username or email already exists
+  const orConditions: Array<{ username?: string; email?: string }> = [{ username: data.username }];
+  if (data.email) {
+    orConditions.push({ email: data.email });
+  }
+
   const existing = await prisma.user.findFirst({
-    where: {
-      OR: [{ username: data.username }, { email: data.email }],
-    },
+    where: { OR: orConditions },
   });
 
   if (existing) {
     if (existing.username === data.username) {
       throw new Error('Username already exists');
     }
-    if (existing.email === data.email) {
+    if (data.email && existing.email === data.email) {
       throw new Error('Email already exists');
     }
   }
@@ -104,7 +107,7 @@ export async function createUser(data: CreateUserInput) {
   const user = await prisma.user.create({
     data: {
       username: data.username,
-      email: data.email,
+      email: data.email ?? null,
       passwordHash,
       role: data.role || 'user',
       isActive: true,
