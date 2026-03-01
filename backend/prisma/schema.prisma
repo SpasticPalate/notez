@@ -19,7 +19,7 @@ datasource db {
 model User {
   id                 String    @id @default(uuid())
   username           String    @unique @db.VarChar(50)
-  email              String    @unique @db.VarChar(255)
+  email              String?   @unique @db.VarChar(255)
   passwordHash       String    @map("password_hash") @db.VarChar(255)
   role               String    @default("user") @db.VarChar(20) // 'admin' or 'user'
   isActive           Boolean   @default(true) @map("is_active")

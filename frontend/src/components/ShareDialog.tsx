@@ -337,7 +337,7 @@ export function ShareDialog({ isOpen, onClose, noteId, noteTitle }: ShareDialogP
                           {contact.username}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {contact.email}
+                          {contact.email || contact.username}
                         </p>
                       </div>
                     </button>
@@ -397,7 +397,7 @@ export function ShareDialog({ isOpen, onClose, noteId, noteTitle }: ShareDialogP
                         {share.sharedWith.username}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {share.sharedWith.email}
+                        {share.sharedWith.email || share.sharedWith.username}
                       </p>
                     </div>
                   </div>

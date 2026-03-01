@@ -36,7 +36,7 @@ export const changePasswordSchema = z.object({
 // User management schemas (admin)
 export const createUserSchema = z.object({
   username: usernameSchema,
-  email: emailSchema,
+  email: emailSchema.optional(),
   password: passwordSchema.optional(),
   role: z.enum(['admin', 'user']).default('user'),
   isServiceAccount: z.boolean().default(false),
@@ -61,6 +61,13 @@ export const createUserSchema = z.object({
       });
     }
   } else {
+    if (!data.email) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Email is required for regular users',
+        path: ['email'],
+      });
+    }
     if (!data.password) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

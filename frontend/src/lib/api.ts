@@ -157,7 +157,7 @@ export const usersApi = {
 
   create: (data: {
     username: string;
-    email: string;
+    email?: string;
     password?: string;
     role?: string;
     isServiceAccount?: boolean;
@@ -459,14 +459,14 @@ export interface NoteShare {
   id: string;
   noteId: string;
   permission: 'VIEW' | 'EDIT';
-  sharedWith: { id: string; username: string; email: string };
+  sharedWith: { id: string; username: string; email: string | null };
   createdAt: string;
 }
 
 export interface SharedContact {
   id: string;
   username: string;
-  email: string;
+  email: string | null;
 }
 
 export const sharesApi = {

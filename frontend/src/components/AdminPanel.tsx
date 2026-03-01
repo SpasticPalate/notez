@@ -7,7 +7,7 @@ import { useToast } from './Toast';
 interface User {
   id: string;
   username: string;
-  email: string;
+  email: string | null;
   role: string;
   isActive: boolean;
   isServiceAccount: boolean;
@@ -50,11 +50,11 @@ export function AdminPanel() {
   const [showResetModal, setShowResetModal] = useState<string | null>(null);
 
   // Create user form
+  const [accountType, setAccountType] = useState<'user' | 'service-account'>('user');
   const [newUsername, setNewUsername] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState('user');
-  const [newIsServiceAccount, setNewIsServiceAccount] = useState(false);
   const [newTokenName, setNewTokenName] = useState('Default');
   const [createError, setCreateError] = useState('');
 
@@ -115,19 +115,21 @@ export function AdminPanel() {
     e.preventDefault();
     setCreateError('');
 
+    const isServiceAccount = accountType === 'service-account';
+
     try {
       const payload: Parameters<typeof usersApi.create>[0] = {
         username: newUsername,
-        email: newEmail,
-        role: newRole,
-        isServiceAccount: newIsServiceAccount,
+        isServiceAccount,
       };
 
-      if (newIsServiceAccount) {
+      if (isServiceAccount) {
         payload.tokenName = newTokenName || 'Default';
         payload.tokenScopes = ['read', 'write'];
       } else {
+        payload.email = newEmail;
         payload.password = newPassword;
+        payload.role = newRole;
       }
 
       const response = await usersApi.create(payload);
@@ -143,16 +145,25 @@ export function AdminPanel() {
       }
       loadUsers();
     } catch (err: any) {
-      setCreateError(err.response?.data?.message || 'Failed to create user');
+      // Parse Zod validation error details if available
+      const details = err.response?.data?.details;
+      if (Array.isArray(details) && details.length > 0) {
+        const messages = details.map((d: { path?: string[]; message?: string }) =>
+          d.path?.length ? `${d.path.join('.')}: ${d.message}` : d.message
+        );
+        setCreateError(messages.join('\n'));
+      } else {
+        setCreateError(err.response?.data?.message || 'Failed to create user');
+      }
     }
   };
 
   const resetCreateForm = () => {
+    setAccountType('user');
     setNewUsername('');
     setNewEmail('');
     setNewPassword('');
     setNewRole('user');
-    setNewIsServiceAccount(false);
     setNewTokenName('Default');
     setCreatedToken(null);
     setTokenCopied(false);
@@ -377,7 +388,9 @@ export function AdminPanel() {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{u.email}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    {u.email || <span className="italic text-gray-400 dark:text-gray-500">No email</span>}
+                  </p>
                   <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
                     Created: {new Date(u.createdAt).toLocaleDateString()}
                   </p>
@@ -457,10 +470,48 @@ export function AdminPanel() {
             ) : (
               // Normal create user form
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Create New User</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  {accountType === 'user' ? 'Create New User' : 'Create Service Account'}
+                </h3>
+
+                {/* Account type segmented control */}
+                <div className="mb-4 flex rounded-md border border-gray-300 dark:border-gray-600 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountType('user');
+                      setNewPassword('');
+                      setCreateError('');
+                    }}
+                    className={`flex-1 py-2 px-4 text-sm font-medium transition-colors ${
+                      accountType === 'user'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    User
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountType('service-account');
+                      setNewPassword('');
+                      setNewEmail('');
+                      setNewRole('user');
+                      setCreateError('');
+                    }}
+                    className={`flex-1 py-2 px-4 text-sm font-medium transition-colors ${
+                      accountType === 'service-account'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    Service Account
+                  </button>
+                </div>
 
                 {createError && (
-                  <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-sm text-red-800 dark:text-red-400">
+                  <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-sm text-red-800 dark:text-red-400 whitespace-pre-line">
                     {createError}
                   </div>
                 )}
@@ -477,37 +528,53 @@ export function AdminPanel() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email</label>
-                    <input
-                      type="email"
-                      required
-                      value={newEmail}
-                      onChange={(e) => setNewEmail(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+                  {accountType === 'user' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email</label>
+                        <input
+                          type="email"
+                          required
+                          value={newEmail}
+                          onChange={(e) => setNewEmail(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
 
-                  {!newIsServiceAccount && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                        Temporary Password
-                      </label>
-                      <input
-                        type="password"
-                        required
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Min 8 chars, 1 uppercase, 1 number"
-                      />
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        User will be required to change this on first login
-                      </p>
-                    </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                          Temporary Password
+                        </label>
+                        <input
+                          type="password"
+                          required
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="Min 8 chars, 1 uppercase, 1 number"
+                        />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          User will be required to change this on first login
+                        </p>
+                      </div>
+
+                      <div>
+                        <label htmlFor="new-user-role" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Role</label>
+                        <select
+                          id="new-user-role"
+                          name="new-user-role"
+                          value={newRole}
+                          onChange={(e) => setNewRole(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="user">User</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </div>
+                    </>
                   )}
 
-                  {newIsServiceAccount && (
+                  {accountType === 'service-account' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                         Token Name
@@ -525,44 +592,12 @@ export function AdminPanel() {
                     </div>
                   )}
 
-                  <div>
-                    <label htmlFor="new-user-role" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Role</label>
-                    <select
-                      id="new-user-role"
-                      name="new-user-role"
-                      value={newRole}
-                      onChange={(e) => setNewRole(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="user">User</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={newIsServiceAccount}
-                        onChange={(e) => {
-                          setNewIsServiceAccount(e.target.checked);
-                          if (e.target.checked) setNewPassword('');
-                        }}
-                        className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Service Account</span>
-                    </label>
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 ml-6">
-                      Service accounts use API tokens instead of passwords. This cannot be changed after creation.
-                    </p>
-                  </div>
-
                   <div className="flex space-x-3 mt-6">
                     <button
                       type="submit"
                       className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                     >
-                      {newIsServiceAccount ? 'Create Service Account' : 'Create User'}
+                      {accountType === 'service-account' ? 'Create Service Account' : 'Create User'}
                     </button>
                     <button
                       type="button"

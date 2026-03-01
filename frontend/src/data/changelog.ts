@@ -12,6 +12,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.12.0',
+    date: '2026-03-01',
+    added: [
+      'Redesigned account creation with a cleaner User / Service Account toggle',
+      'Service accounts no longer require an email address',
+      'Better error messages when creating accounts',
+    ],
+  },
+  {
     version: '1.11.0',
     date: '2026-03-01',
     added: [

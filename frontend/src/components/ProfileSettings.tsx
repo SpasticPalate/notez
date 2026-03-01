@@ -9,7 +9,7 @@ export function ProfileSettings() {
   const { user, refreshAuth } = useAuth();
   const confirm = useConfirm();
   const [isEditingEmail, setIsEditingEmail] = useState(false);
-  const [email, setEmail] = useState(user?.email || '');
+  const [email, setEmail] = useState(user?.email ?? '');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -237,7 +237,7 @@ export function ProfileSettings() {
                 type="button"
                 onClick={() => {
                   setIsEditingEmail(false);
-                  setEmail(user.email);
+                  setEmail(user.email ?? '');
                   setError('');
                 }}
                 className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -266,7 +266,7 @@ export function ProfileSettings() {
         ) : (
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-900 dark:text-white">{user.email}</p>
+              <p className="text-gray-900 dark:text-white">{user.email || <span className="italic text-gray-400">No email set</span>}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 Your email is used for account recovery and notifications.
               </p>

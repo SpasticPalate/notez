@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-03-01
+
+### Added
+
+- **Redesigned account creation modal**: Segmented control at the top lets admins toggle between "User" and "Service Account" modes. Each mode shows only the relevant fields — no more impossible states (e.g., Admin + Service Account).
+- **Email now optional for service accounts**: Database schema updated to allow NULL email. Existing service account emails cleared via migration. Regular users still require email.
+
+### Changed
+
+- **Better validation error messages**: Create user form now parses Zod validation details and displays field-specific error messages instead of generic "Invalid request data".
+- **Service accounts no longer require email**: Frontend form hides email/password/role fields entirely in Service Account mode, showing only Username and Token Name.
+
+### Fixed
+
+- **User list shows "No email" for service accounts**: Instead of displaying blank or undefined, service accounts with null email now show an italic "No email" label.
+- **ShareDialog handles null email**: Contact autocomplete and share list fall back to username when email is null.
+
 ## [1.11.0] - 2026-03-01
 
 ### Added
