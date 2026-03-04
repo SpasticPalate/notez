@@ -81,3 +81,6 @@ _vibe-forge/.github/
 # !_vibe-forge/tasks/
 # !_vibe-forge/context/
 # !_vibe-forge/.claude/
+_vibe-forge/
+context/
+.claude/commands/
