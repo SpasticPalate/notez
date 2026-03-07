@@ -4,6 +4,7 @@
  */
 import { generateHTML, generateJSON } from '@tiptap/html';
 import StarterKit from '@tiptap/starter-kit';
+import CodeBlock from '@tiptap/extension-code-block';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Link from '@tiptap/extension-link';
@@ -12,11 +13,17 @@ import { marked } from 'marked';
 import TurndownService from 'turndown';
 import * as Y from 'yjs';
 
-// Server-side extensions (same as frontend minus Placeholder, ImageUpload, WikiLink)
+// Server-side extensions (same as frontend minus Placeholder, ImageUpload, WikiLink).
+// CodeBlock must be registered explicitly because StarterKit.configure({ codeBlock: false })
+// is used on the frontend — the server needs to mirror that schema.
 const extensions = [
   StarterKit.configure({
-    // Note: history is left enabled server-side since this is for one-time conversion
-  } as any),
+    // history is left enabled server-side (one-time conversion, no undo needed).
+    // codeBlock disabled so we register the extension explicitly below,
+    // keeping the server schema in sync with the frontend.
+    codeBlock: false,
+  }),
+  CodeBlock,
   TaskList,
   TaskItem.configure({
     nested: true,
@@ -33,7 +40,8 @@ marked.use({
   breaks: true,
 });
 
-// Configure turndown (same as frontend)
+// Configure turndown (mirrors frontend TiptapEditor.tsx — omits React-specific
+// rules such as codeBlockWrapper which only apply to browser-rendered DOM)
 const turndownService = new TurndownService({
   headingStyle: 'atx',
   codeBlockStyle: 'fenced',

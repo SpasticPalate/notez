@@ -35,6 +35,12 @@ vi.mock('./WikiLinkExtension', () => ({
   },
 }));
 
+vi.mock('./CodeBlockExtension', () => ({
+  CodeBlockExtension: {
+    name: 'codeBlock',
+  },
+}));
+
 // Mock StarterKit — it's complex; we only need to verify it's configured
 vi.mock('@tiptap/starter-kit', () => ({
   default: {
@@ -128,14 +134,15 @@ describe('getBaseExtensions', () => {
     expect(names).toContain('typography');
     expect(names).toContain('image');
     expect(names).toContain('wikiLink');
+    expect(names).toContain('codeBlock');
   });
 
-  it('has exactly 8 extensions', async () => {
+  it('has exactly 9 extensions', async () => {
     const { getBaseExtensions } = await import('./editorExtensions');
     const extensions = getBaseExtensions(baseOptions);
     // StarterKit, TaskList, TaskItem, Link, Placeholder, Typography,
-    // ImageUploadExtension, WikiLink = 8
-    expect(extensions).toHaveLength(8);
+    // ImageUploadExtension, WikiLink, CodeBlockExtension = 9
+    expect(extensions).toHaveLength(9);
   });
 
   it('configures StarterKit to disable its built-in Link extension', async () => {
@@ -146,6 +153,17 @@ describe('getBaseExtensions', () => {
 
     expect(StarterKit.configure).toHaveBeenCalledWith(
       expect.objectContaining({ link: false })
+    );
+  });
+
+  it('configures StarterKit to disable its built-in codeBlock extension', async () => {
+    const StarterKit = (await import('@tiptap/starter-kit')).default;
+    const { getBaseExtensions } = await import('./editorExtensions');
+
+    getBaseExtensions(baseOptions);
+
+    expect(StarterKit.configure).toHaveBeenCalledWith(
+      expect.objectContaining({ codeBlock: false })
     );
   });
 

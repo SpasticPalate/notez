@@ -5,6 +5,10 @@
  *
  * This eliminates config divergence between the two editors.
  * Any extension added, removed, or reconfigured here applies to both.
+ *
+ * Note: StarterKit is configured with `codeBlock: false` to prevent the
+ * built-in CodeBlock from registering. CodeBlockExtension (which adds the
+ * copy button node view) is registered explicitly instead.
  */
 import StarterKit from '@tiptap/starter-kit';
 import TaskList from '@tiptap/extension-task-list';
@@ -15,6 +19,7 @@ import Typography from '@tiptap/extension-typography';
 import type { Extensions } from '@tiptap/react';
 import { ImageUploadExtension } from './TiptapImageExtension';
 import { WikiLink } from './WikiLinkExtension';
+import { CodeBlockExtension } from './CodeBlockExtension';
 
 interface BaseExtensionOptions {
   placeholder?: string;
@@ -43,6 +48,9 @@ export function getBaseExtensions({
       // StarterKit v3 includes Link by default — disable to avoid duplicate
       // with our explicit Link extension below.
       link: false,
+      // Disable built-in codeBlock — replaced by CodeBlockExtension which
+      // adds a React node view with a copy button.
+      codeBlock: false,
       // In collaborative mode, Collaboration extension provides its own
       // undo/redo via yUndoPlugin. Disable StarterKit's to prevent conflicts.
       ...(collaborative ? { undoRedo: false } : {}),
@@ -73,6 +81,7 @@ export function getBaseExtensions({
     WikiLink.configure({
       onWikiLinkClick: onWikiLinkClick ?? (() => {}),
     }),
+    CodeBlockExtension,
   ];
 }
 

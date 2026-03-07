@@ -1,6 +1,6 @@
 {
   "name": "notez-backend",
-  "version": "1.15.0",
+  "version": "1.16.0",
   "description": "Notez backend API server",
   "main": "dist/index.js",
   "type": "module",
@@ -37,6 +37,7 @@
     "@hocuspocus/server": "^3.4.4",
     "@prisma/client": "^5.20.0",
     "@tiptap/core": "^3.20.0",
+    "@tiptap/extension-code-block": "^3.20.1",
     "@tiptap/extension-link": "^3.20.0",
     "@tiptap/extension-task-item": "^3.20.0",
     "@tiptap/extension-task-list": "^3.20.0",
