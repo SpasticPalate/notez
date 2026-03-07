@@ -371,6 +371,21 @@ Identified during 2-agent code review (Architect, Security). All CRITICAL and HI
 **Fix:** Added `NOT NULL DEFAULT '{}'` to the column definition.
 **Status:** Fixed
 
+### 51. CodeBlockExtension Must Migrate to CodeBlockLowlight for Syntax Highlighting
+**Location:** `frontend/src/components/CodeBlockExtension.tsx`
+**Issue:** `CodeBlockExtension` currently extends `@tiptap/extension-code-block`. When syntax
+highlighting is added (planned roadmap item), the extension must be refactored to extend
+`@tiptap/extension-code-block-lowlight` instead. `CodeBlockLowlight` has a different
+constructor signature, additional options (`lowlight`, `defaultLanguage`), and registers an
+extra ProseMirror decoration plugin. The two base classes are **not** drop-in replacements —
+a clean refactor is required rather than incremental modification.
+**Action required when implementing syntax highlighting:**
+1. `npm install @tiptap/extension-code-block-lowlight lowlight` in frontend
+2. Change `import CodeBlock from '@tiptap/extension-code-block'` → `import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'`
+3. Replace `CodeBlock.extend(...)` with `CodeBlockLowlight.extend(...)` and pass lowlight instance via options
+4. Update `tiptap-server.ts` to use the lowlight variant for consistent HTML generation
+**Status:** Deferred — tracked for syntax highlighting milestone
+
 ---
 
 ## Version Notes
@@ -445,3 +460,4 @@ Identified during 2-agent code review (Architect, Security). All CRITICAL and HI
 | No per-user token cap (20 limit added) | 2026-02-27 | 2026-02-27 | v1.6.0 |
 | Token scope deduplication | 2026-02-27 | 2026-02-27 | v1.6.0 |
 | htmlToPlainText missing entity decoding | 2026-02-27 | 2026-02-27 | v1.6.0 |
+| CodeBlockExtension → CodeBlockLowlight refactor needed for syntax highlighting | 2026-03-07 | Deferred | - |

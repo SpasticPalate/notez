@@ -9,10 +9,6 @@
     from { opacity: 1; }
     to { opacity: 1; }
   }
-
-  .code-block-copy-btn {
-    transition: none;
-  }
 }
 
 /* Tiptap Editor Styles */
@@ -400,16 +396,21 @@
 
 .code-block-wrapper pre {
   margin: 0;
+  /* M3/M4: right padding ensures code text doesn't slide under the copy button */
+  padding-right: 4rem;
 }
 
 .code-block-copy-btn {
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
-  padding: 0.2rem 0.55rem;
+  display: inline-flex; /* aligns icon + text on the same baseline */
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.65rem; /* L3: min 44 × 24 px touch target */
   font-size: 0.7rem;
-  font-family: inherit;
-  line-height: 1.4;
+  font-family: system-ui, sans-serif; /* M9: UI font, not monospace */
+  line-height: 1;
   border-radius: 4px;
   border: 1px solid rgba(0, 0, 0, 0.15);
   background: rgba(255, 255, 255, 0.85);
@@ -421,21 +422,35 @@
   user-select: none;
 }
 
-.code-block-wrapper:hover .code-block-copy-btn {
+/* Reveal on hover or when the button itself is keyboard-focused (H9) */
+.code-block-wrapper:hover .code-block-copy-btn,
+.code-block-wrapper:focus-within .code-block-copy-btn {
   opacity: 1;
+}
+
+/* Touch devices have no hover — keep button always visible (H1) */
+@media (hover: none) {
+  .code-block-copy-btn {
+    opacity: 1;
+  }
 }
 
 .code-block-copy-btn:hover {
   background: rgba(255, 255, 255, 1);
 }
 
-.code-block-copy-btn.copied {
-  color: #059669;
-  border-color: rgba(5, 150, 105, 0.3);
+.code-block-copy-btn--copying {
   opacity: 1;
 }
 
-.code-block-copy-btn.failed {
+/* M1: #047857 passes WCAG AA on white (was #059669 which failed) */
+.code-block-copy-btn--copied {
+  color: #047857;
+  border-color: rgba(4, 120, 87, 0.3);
+  opacity: 1;
+}
+
+.code-block-copy-btn--failed {
   color: #dc2626;
   border-color: rgba(220, 38, 38, 0.3);
   opacity: 1;
@@ -447,13 +462,21 @@
   outline-offset: 2px;
 }
 
+/* L1: reduced-motion override lives next to the rule it overrides */
+@media (prefers-reduced-motion: reduce) {
+  .code-block-copy-btn {
+    transition: none;
+  }
+}
+
 .dark .code-block-copy-btn {
   background: rgba(30, 30, 30, 0.85);
   color: #d1d5db;
   border-color: rgba(255, 255, 255, 0.15);
 }
 
-.dark .code-block-wrapper:hover .code-block-copy-btn {
+.dark .code-block-wrapper:hover .code-block-copy-btn,
+.dark .code-block-wrapper:focus-within .code-block-copy-btn {
   opacity: 1;
 }
 
@@ -461,12 +484,16 @@
   background: rgba(50, 50, 50, 0.95);
 }
 
-.dark .code-block-copy-btn.copied {
+.dark .code-block-copy-btn--copying {
+  opacity: 1;
+}
+
+.dark .code-block-copy-btn--copied {
   color: #34d399;
   border-color: rgba(52, 211, 153, 0.3);
 }
 
-.dark .code-block-copy-btn.failed {
+.dark .code-block-copy-btn--failed {
   color: #f87171;
   border-color: rgba(248, 113, 113, 0.3);
 }
