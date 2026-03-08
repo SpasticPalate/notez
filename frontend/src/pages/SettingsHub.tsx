@@ -1,15 +1,16 @@
 import { useCallback } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { User, Bot, Shield, ArrowLeft, MessageSquare, Key } from 'lucide-react';
+import { User, Bot, Shield, ArrowLeft, MessageSquare, Key, Webhook } from 'lucide-react';
 import { AppHeader } from '../components/AppHeader';
 import { ProfileSettings } from '../components/ProfileSettings';
 import { AISettings } from '../components/AISettings';
 import { AdminPanel } from '../components/AdminPanel';
 import { AdminFeedbackPanel } from '../components/AdminFeedbackPanel';
 import { ApiTokenSettings } from '../components/ApiTokenSettings';
+import { WebhookSettings } from '../components/WebhookSettings';
 import { useAuth } from '../contexts/AuthContext';
 
-export type SettingsSection = 'profile' | 'ai' | 'tokens' | 'admin' | 'feedback';
+export type SettingsSection = 'profile' | 'ai' | 'tokens' | 'webhooks' | 'admin' | 'feedback';
 
 export const SECTION_CONFIG = {
   profile: {
@@ -28,6 +29,12 @@ export const SECTION_CONFIG = {
     label: 'API Tokens',
     icon: Key,
     description: 'Manage tokens for MCP and API access',
+    adminOnly: false,
+  },
+  webhooks: {
+    label: 'Webhooks',
+    icon: Webhook,
+    description: 'Push notifications for note and task changes',
     adminOnly: false,
   },
   admin: {
@@ -77,6 +84,8 @@ export function SettingsHub() {
         return <AISettings />;
       case 'tokens':
         return <ApiTokenSettings />;
+      case 'webhooks':
+        return <WebhookSettings />;
       case 'admin':
         return user?.role === 'admin' ? <AdminPanel /> : null;
       case 'feedback':

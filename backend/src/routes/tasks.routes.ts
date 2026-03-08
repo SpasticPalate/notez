@@ -19,6 +19,7 @@ import {
   type ScanTasksInput,
   type ImportTasksInput,
 } from '../utils/validation.schemas.js';
+import { safeEmitWebhookEvent } from '../services/webhook.service.js';
 
 // Param schemas
 const taskIdParamSchema = z.object({
@@ -188,6 +189,7 @@ export async function tasksRoutes(fastify: FastifyInstance) {
         const body = request.body as CreateTaskInput;
 
         const task = await taskService.createTask(userId, body);
+        safeEmitWebhookEvent(userId, 'task.created', task as Record<string, any>);
         return reply.status(201).send(task);
       } catch (error: any) {
         fastify.log.error(error);
@@ -220,6 +222,7 @@ export async function tasksRoutes(fastify: FastifyInstance) {
         const body = request.body as UpdateTaskInput;
 
         const task = await taskService.updateTask(params.id, userId, body);
+        safeEmitWebhookEvent(userId, 'task.updated', task as Record<string, any>);
         return task;
       } catch (error: any) {
         fastify.log.error(error);
@@ -258,7 +261,22 @@ export async function tasksRoutes(fastify: FastifyInstance) {
         const params = request.params as z.infer<typeof taskIdParamSchema>;
         const body = request.body as UpdateTaskStatusInput;
 
+        const previousTask = await taskService.getTaskById(params.id, userId);
+        const previousStatus = previousTask?.status;
+
         const task = await taskService.updateTaskStatus(params.id, userId, body.status);
+
+        // Determine specific event type based on the status transition
+        const newStatus = (task as any).status;
+        let eventType = 'task.updated';
+        if (newStatus === 'COMPLETED' && previousStatus !== 'COMPLETED') {
+          eventType = 'task.completed';
+        } else if (previousStatus === 'COMPLETED' && newStatus !== 'COMPLETED') {
+          eventType = 'task.uncompleted';
+        }
+
+        const previousData = previousStatus !== newStatus ? { status: previousStatus } : undefined;
+        safeEmitWebhookEvent(userId, eventType, task as Record<string, any>, previousData);
         return task;
       } catch (error: any) {
         fastify.log.error(error);
@@ -289,7 +307,11 @@ export async function tasksRoutes(fastify: FastifyInstance) {
         const userId = request.user!.userId;
         const params = request.params as z.infer<typeof taskIdParamSchema>;
 
+        const task = await taskService.getTaskById(params.id, userId);
         await taskService.deleteTask(params.id, userId);
+        if (task) {
+          safeEmitWebhookEvent(userId, 'task.deleted', task as Record<string, any>);
+        }
         return reply.status(204).send();
       } catch (error: any) {
         fastify.log.error(error);

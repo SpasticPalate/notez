@@ -503,6 +503,84 @@ export const tokensApi = {
   revoke: (id: string) => api.delete(`/api/tokens/${id}`),
 };
 
+export interface Webhook {
+  id: string;
+  url: string;
+  events: string[];
+  status: 'active' | 'paused' | 'disabled';
+  metadata?: Record<string, unknown>;
+  consecutiveFailures: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WebhookDelivery {
+  id: string;
+  webhookId: string;
+  eventId: string;
+  url: string;
+  requestHeaders?: Record<string, string>;
+  requestBody?: string;
+  responseStatus?: number;
+  responseBody?: string;
+  responseTimeMs?: number;
+  attemptNumber: number;
+  status: 'pending' | 'success' | 'failed' | 'cancelled';
+  nextRetryAt?: string;
+  createdAt: string;
+  event?: { eventType: string; entityType: string; entityId: string };
+}
+
+export const webhooksApi = {
+  list: () => api.get<{ webhooks: Webhook[]; total: number }>('/api/webhooks'),
+
+  get: (id: string) => api.get<Webhook>(`/api/webhooks/${id}`),
+
+  create: (data: {
+    url: string;
+    events: string[];
+    secret: string;
+    metadata?: Record<string, unknown>;
+  }) => api.post<Webhook>('/api/webhooks', data),
+
+  update: (
+    id: string,
+    data: {
+      url?: string;
+      events?: string[];
+      secret?: string;
+      status?: 'active' | 'paused' | 'disabled';
+      metadata?: Record<string, unknown>;
+    },
+  ) => api.patch<Webhook>(`/api/webhooks/${id}`, data),
+
+  delete: (id: string) => api.delete(`/api/webhooks/${id}`),
+
+  test: (id: string) => api.post<{ deliveryId: string }>(`/api/webhooks/${id}/test`),
+
+  listDeliveries: (
+    id: string,
+    params?: {
+      status?: string;
+      eventType?: string;
+      since?: string;
+      limit?: number;
+      offset?: number;
+    },
+  ) => api.get<{ deliveries: WebhookDelivery[]; total: number }>(`/api/webhooks/${id}/deliveries`, { params }),
+
+  getDelivery: (webhookId: string, deliveryId: string) =>
+    api.get<WebhookDelivery>(`/api/webhooks/${webhookId}/deliveries/${deliveryId}`),
+
+  replayDelivery: (webhookId: string, deliveryId: string) =>
+    api.post<{ deliveryId: string }>(`/api/webhooks/${webhookId}/deliveries/${deliveryId}/replay`),
+
+  replay: (
+    id: string,
+    data: { since: string; until?: string; eventTypes?: string[] },
+  ) => api.post<{ queued: number }>(`/api/webhooks/${id}/replay`, data),
+};
+
 export const notificationsApi = {
   list: (params?: { limit?: number; offset?: number; unreadOnly?: boolean }) =>
     api.get('/api/notifications', { params }),

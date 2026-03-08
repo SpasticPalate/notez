@@ -28,9 +28,11 @@ import { collaborationRoutes } from './routes/collaboration.routes.js';
 import { adminRoutes } from './routes/admin.routes.js';
 import { tokenRoutes } from './routes/token.routes.js';
 import { mcpRoutes } from './routes/mcp.routes.js';
+import { webhooksRoutes } from './routes/webhooks.routes.js';
 import { prisma, disconnectPrisma } from './lib/db.js';
 import { storageService } from './services/storage.service.js';
 import { hocuspocusServer } from './services/collaboration.service.js';
+import { startWebhookWorker, stopWebhookWorker } from './services/webhook-worker.service.js';
 
 // Configure DATABASE_URL from components if not explicitly set
 // This allows using POSTGRES_USER, POSTGRES_PASSWORD, etc. instead of hardcoded URL
@@ -207,6 +209,7 @@ await fastify.register(notificationsRoutes, { prefix: '/api' }); // User notific
 await fastify.register(collaborationRoutes, { prefix: '/api' }); // Real-time collaboration WebSocket
 await fastify.register(adminRoutes, { prefix: '/api' }); // Admin service account endpoints
 await fastify.register(tokenRoutes, { prefix: '/api' }); // API token management
+await fastify.register(webhooksRoutes, { prefix: '/api' }); // Webhook subscriptions & delivery log
 await fastify.register(mcpRoutes, { prefix: '/api/mcp' }); // MCP API endpoints (legacy — kept for backwards compatibility)
 await fastify.register(mcpRoutes, { prefix: '/api/v1' });  // Versioned external API
 
@@ -252,6 +255,9 @@ const start = async () => {
 
     await fastify.listen({ port, host });
     console.log(`🚀 Notez API server running on http://${host}:${port}`);
+
+    // Start webhook delivery worker
+    startWebhookWorker();
   } catch (err) {
     fastify.log.error(err);
     await disconnectPrisma();
@@ -263,6 +269,7 @@ const start = async () => {
 const gracefulShutdown = async (signal: string) => {
   console.log(`\n${signal} received, closing server gracefully...`);
   try {
+    stopWebhookWorker();
     await hocuspocusServer.closeConnections();
     await fastify.close();
     await disconnectPrisma();
