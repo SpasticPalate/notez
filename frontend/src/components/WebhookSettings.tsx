@@ -327,7 +327,7 @@ function WebhookCard({ webhook, onUpdate, onDelete }: {
       title: 'Delete Webhook',
       message: 'This will remove the webhook and cancel all pending deliveries. This cannot be undone.',
       confirmText: 'Delete',
-      confirmVariant: 'danger',
+      variant: 'danger',
     });
     if (!confirmed) return;
     try {
