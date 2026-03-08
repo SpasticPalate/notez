@@ -10,6 +10,7 @@ import {
   type UpdateFolderInput,
 } from '../utils/validation.schemas.js';
 import { NotFoundError, ConflictError } from '../utils/errors.js';
+import { safeEmitWebhookEvent } from '../services/webhook.service.js';
 
 // Param schemas
 const folderIdParamSchema = z.object({
@@ -95,6 +96,7 @@ export async function foldersRoutes(fastify: FastifyInstance) {
       try {
         const userId = request.user!.userId;
         const folder = await folderService.createFolder(userId, request.body as CreateFolderInput);
+        safeEmitWebhookEvent(userId, 'folder.created', folder as Record<string, any>);
 
         return reply.status(201).send({
           message: 'Folder created successfully',
@@ -128,7 +130,24 @@ export async function foldersRoutes(fastify: FastifyInstance) {
       try {
         const userId = request.user!.userId;
         const params = request.params as z.infer<typeof folderIdParamSchema>;
+        const previousFolder = await folderService.getFolderById(params.id, userId).catch(() => null);
         const folder = await folderService.updateFolder(params.id, userId, request.body as UpdateFolderInput);
+
+        // Compute which fields changed
+        const previousData: Record<string, any> = {};
+        const body = request.body as UpdateFolderInput;
+        if (previousFolder && body.name !== undefined && body.name !== (previousFolder as any).name) {
+          previousData.name = (previousFolder as any).name;
+        }
+        if (previousFolder && body.icon !== undefined && body.icon !== (previousFolder as any).icon) {
+          previousData.icon = (previousFolder as any).icon;
+        }
+        safeEmitWebhookEvent(
+          userId,
+          'folder.updated',
+          folder as Record<string, any>,
+          Object.keys(previousData).length > 0 ? previousData : undefined,
+        );
 
         return {
           message: 'Folder updated successfully',
@@ -169,7 +188,11 @@ export async function foldersRoutes(fastify: FastifyInstance) {
       try {
         const userId = request.user!.userId;
         const params = request.params as z.infer<typeof folderIdParamSchema>;
+        const folderToDelete = await folderService.getFolderById(params.id, userId).catch(() => null);
         const result = await folderService.deleteFolder(params.id, userId);
+        if (folderToDelete) {
+          safeEmitWebhookEvent(userId, 'folder.deleted', folderToDelete as Record<string, any>);
+        }
 
         return result;
       } catch (error) {

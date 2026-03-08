@@ -402,3 +402,58 @@ export const listFeedbackQuerySchema = z.object({
 export type CreateFeedbackInput = z.infer<typeof createFeedbackSchema>;
 export type UpdateFeedbackInput = z.infer<typeof updateFeedbackSchema>;
 export type ListFeedbackQuery = z.infer<typeof listFeedbackQuerySchema>;
+
+// ─── Webhook schemas ─────────────────────────────────────────────────────────
+
+const WEBHOOK_EVENT_VALUES = [
+  'task.created', 'task.updated', 'task.completed', 'task.uncompleted', 'task.deleted',
+  'note.created', 'note.updated', 'note.deleted',
+  'folder.created', 'folder.updated', 'folder.deleted',
+  '*',
+] as const;
+
+const webhookEventsSchema = z
+  .array(z.string())
+  .min(1, 'At least one event is required')
+  .max(20, 'Too many events')
+  .refine(
+    (events) =>
+      events.every(
+        (e) => WEBHOOK_EVENT_VALUES.includes(e as typeof WEBHOOK_EVENT_VALUES[number]),
+      ),
+    'Invalid event type — must be a valid event or "*"',
+  );
+
+export const createWebhookSchema = z.object({
+  url: z.string().url('Invalid URL').max(2048, 'URL too long'),
+  events: webhookEventsSchema,
+  secret: z.string().min(16, 'Secret must be at least 16 characters').max(256, 'Secret too long'),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const updateWebhookSchema = z.object({
+  url: z.string().url('Invalid URL').max(2048, 'URL too long').optional(),
+  events: webhookEventsSchema.optional(),
+  secret: z.string().min(16, 'Secret must be at least 16 characters').max(256, 'Secret too long').optional(),
+  status: z.enum(['active', 'paused', 'disabled']).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const webhookReplaySchema = z.object({
+  since: z.string().datetime('Invalid datetime — use ISO 8601'),
+  until: z.string().datetime('Invalid datetime — use ISO 8601').optional(),
+  eventTypes: z.array(z.string()).max(20).optional(),
+});
+
+export const listDeliveriesQuerySchema = z.object({
+  status: z.enum(['pending', 'success', 'failed', 'cancelled']).optional(),
+  eventType: z.string().optional(),
+  since: z.string().datetime().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+export type CreateWebhookInput = z.infer<typeof createWebhookSchema>;
+export type UpdateWebhookInput = z.infer<typeof updateWebhookSchema>;
+export type WebhookReplayInput = z.infer<typeof webhookReplaySchema>;
+export type ListDeliveriesQuery = z.infer<typeof listDeliveriesQuerySchema>;

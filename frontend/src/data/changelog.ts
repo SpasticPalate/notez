@@ -12,6 +12,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.17.0',
+    date: '2026-03-08',
+    added: [
+      'Webhooks — register an HTTPS endpoint and receive real-time push notifications whenever tasks, notes, or folders change',
+      'Manage webhooks from Settings → Webhooks: register, test, pause, view the delivery log, and replay failed events',
+      'Every webhook delivery is HMAC-SHA256 signed so you can verify it came from Notez',
+      'Automatic retry with exponential backoff — up to 7 attempts over ~17 hours if your endpoint is down',
+      'Bulk event replay to catch up after downtime (pick a time range and re-fire matching events)',
+    ],
+  },
+  {
     version: '1.16.0',
     date: '2026-03-07',
     added: [

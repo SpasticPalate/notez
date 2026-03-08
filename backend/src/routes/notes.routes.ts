@@ -10,6 +10,7 @@ import {
   type CreateNoteInput,
   type UpdateNoteInput,
 } from '../utils/validation.schemas.js';
+import { safeEmitWebhookEvent } from '../services/webhook.service.js';
 
 // Param schemas
 const noteIdParamSchema = z.object({
@@ -109,6 +110,7 @@ export async function notesRoutes(fastify: FastifyInstance) {
       try {
         const userId = request.user!.userId;
         const note = await noteService.createNote(userId, request.body as CreateNoteInput);
+        safeEmitWebhookEvent(userId, 'note.created', note as Record<string, any>);
 
         return reply.status(201).send({
           message: 'Note created successfully',
@@ -144,7 +146,24 @@ export async function notesRoutes(fastify: FastifyInstance) {
       try {
         const userId = request.user!.userId;
         const params = request.params as z.infer<typeof noteIdParamSchema>;
+        const previousNote = await noteService.getNoteById(params.id, userId).catch(() => null);
         const note = await noteService.updateNote(params.id, userId, request.body as UpdateNoteInput);
+
+        // Compute which fields changed so consumers know what specifically updated
+        const previousData: Record<string, any> = {};
+        const body = request.body as UpdateNoteInput;
+        if (previousNote && body.title !== undefined && body.title !== (previousNote as any).title) {
+          previousData.title = (previousNote as any).title;
+        }
+        if (previousNote && body.folderId !== undefined && body.folderId !== (previousNote as any).folderId) {
+          previousData.folderId = (previousNote as any).folderId;
+        }
+        safeEmitWebhookEvent(
+          userId,
+          'note.updated',
+          note as Record<string, any>,
+          Object.keys(previousData).length > 0 ? previousData : undefined,
+        );
 
         return {
           message: 'Note updated successfully',
@@ -185,7 +204,11 @@ export async function notesRoutes(fastify: FastifyInstance) {
       try {
         const userId = request.user!.userId;
         const params = request.params as z.infer<typeof noteIdParamSchema>;
+        const noteToDelete = await noteService.getNoteById(params.id, userId).catch(() => null);
         await noteService.deleteNote(params.id, userId);
+        if (noteToDelete) {
+          safeEmitWebhookEvent(userId, 'note.deleted', noteToDelete as Record<string, any>);
+        }
 
         return {
           message: 'Note moved to trash',

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.17.0] - 2026-03-08
+
+### Added
+
+- **Webhook system**: Full-featured outbound webhook delivery for Notez. Register HTTPS endpoints to receive signed HTTP POST notifications when tasks, notes, or folders change. Designed for PAM Android companion app but generic for any consumer.
+  - `POST /api/webhooks` — register a webhook (URL, event filter, HMAC secret, metadata)
+  - `GET /api/webhooks` — list subscriptions
+  - `PATCH /api/webhooks/:id` — update URL, events, status (active/paused/disabled), or rotate secret
+  - `DELETE /api/webhooks/:id` — remove subscription and cancel pending deliveries
+  - `POST /api/webhooks/:id/test` — fire a synthetic test event to verify the endpoint
+  - `GET /api/webhooks/:id/deliveries` — queryable delivery log (filter by status, event type, date)
+  - `POST /api/webhooks/:id/deliveries/:deliveryId/replay` — re-fire a specific delivery
+  - `POST /api/webhooks/:id/replay` — bulk replay events for a time range (catch-up after downtime)
+- **Event types**: `task.created`, `task.updated`, `task.completed`, `task.uncompleted`, `task.deleted`, `note.created`, `note.updated`, `note.deleted`, `folder.created`, `folder.updated`, `folder.deleted`. Wildcard `*` subscribes to all.
+- **Payload format**: Every delivery includes full current entity state (`data`) plus changed fields with previous values (`previous_data`) — consumers never need a follow-up GET.
+- **HMAC-SHA256 signing**: Every delivery is signed with `X-Notez-Signature: sha256={hex}` over the raw body. `X-Notez-Timestamp` (Unix epoch) included for replay attack prevention (consumers should reject if `|now - ts| > 300s`).
+- **Secret rotation**: `PATCH /api/webhooks/:id { "secret": "new" }` rotates the secret with a 1-hour grace period where both old and new secrets are valid — zero-downtime rotation.
+- **Background delivery worker**: Webhook HTTP calls are fully async and non-blocking. A 5-second poll loop processes deliveries with 7-attempt exponential backoff (immediate → 30s → 2m → 10m → 1h → 4h → 12h).
+- **Auto-disable**: Webhooks are automatically set to `disabled` after 50 consecutive delivery failures. Re-enable via `PATCH /api/webhooks/:id { "status": "active" }`.
+- **SSRF protection**: Webhook URLs are validated against private IP ranges (loopback, RFC1918, link-local) before registration.
+- **Rate limiting**: Max 10 webhooks per user.
+- **Data retention**: Delivery log pruned after 30 days, event log after 90 days. Configurable via `WEBHOOK_DELIVERY_RETENTION_DAYS` and `WEBHOOK_EVENT_RETENTION_DAYS` env vars.
+- **Webhook settings UI**: New "Webhooks" section in Settings with registration form, event picker, secret generator/copier, per-webhook delivery log, test button, pause/resume, and a HMAC verification code example.
+
 ## [1.16.0] - 2026-03-07
 
 ### Added
