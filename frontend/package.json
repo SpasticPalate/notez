@@ -28,7 +28,7 @@
     "@types/turndown": "^5.0.6",
     "axios": "^1.19.0",
     "date-fns": "^4.4.0",
-    "dompurify": "^3.4.12",
+    "dompurify": "^3.4.13",
     "lucide-react": "^0.577.0",
     "marked": "^16.4.1",
     "qrcode.react": "^4.2.0",
