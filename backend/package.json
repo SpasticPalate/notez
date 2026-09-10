@@ -46,7 +46,7 @@
     "@opentelemetry/sdk-metrics": "^2.7.0",
     "@opentelemetry/sdk-node": "^0.221.0",
     "@prisma/client": "^5.20.0",
-    "@tiptap/core": "^3.29.2",
+    "@tiptap/core": "^3.30.5",
     "@tiptap/extension-code-block": "^3.29.2",
     "@tiptap/extension-link": "^3.29.2",
     "@tiptap/extension-task-item": "^3.29.2",
